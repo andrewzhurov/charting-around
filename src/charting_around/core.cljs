@@ -4,13 +4,13 @@
             [goog.string :as gstr]))
 
 (defn l [desc expr]
-  (js/console.log desc expr)
+  (println desc expr)
   expr)
 
-(defn deep-merge [coll1 coll2]
-  (if (not (and (map? coll1) (map? coll2)))
-    coll2
-    (merge-with deep-merge coll1 coll2)))
+(defn deep-merge [& colls]
+  (if (not (every? map? colls))
+    (last colls)
+    (apply merge-with deep-merge colls)))
 
 (def styles
   [[:svg {:display "block"
@@ -27,105 +27,106 @@
   (fn [domain-val]
     (* range (/ (- domain-val domain-start) (- domain-end domain-start)))))
 
-(defn scale-linear-reverse [[domain-start domain-end] range]
-  (fn [domain-val]
-    (js/Math.abs (- (* range (/ (- domain-val domain-start) (- domain-end domain-start))) range))))
-
 (def spec
   {:range [800 300]
-   :x-axis {:domain [2012 2020]
-            :scale scale-linear
-            :tick 1
-            :desc "Year"
-            :val-path [:production-year]
-            }
-   :y-axis {:domain [0 300]
-            :scale scale-linear
-            :tick 30
-            :desc "Top speed (km/h)"
-            :val-path [:top-speed]
-            }
-   :data #{{:car-name "Volkswagen Polo"
-            :production-year 2018
-            :top-speed 200}
-           {:car-name "Jaguar MM"
-            :production-year 2017
-            :top-speed 280}
-           {:production-year 2016
-            :car-name "Subaru impreza"
-            :top-speed 250}}
+   :axes {:production-axis
+          {:domain [2012 2020]
+           :scale scale-linear
+           :tick 1
+           :desc "Year"
+           :val-path [:production-year]}
+
+          :speed-axis
+          {:domain [0 300]
+           :scale scale-linear
+           :tick 30
+           :desc "Top speed (km/h)"
+           :val-path [:top-speed]
+           }}
+
+   :data {:vp {:car-name "Volkswagen Polo"
+               :production-year 2018
+               :top-speed 200}
+
+          :jmm {:car-name "Jaguar MM"
+                :production-year 2017
+                :top-speed 280}
+
+          :si {:car-name "Subaru impreza"
+               :production-year 2016
+               :top-speed 250}}
+
+   :derived-data {:vp {:production-axis {}
+                       :speed-axis {}}
+                  :jmm {:production-axis {}}
+                  :si {:production-axis {}}}
    })
 
 
-(defn label-defaults [position direction]
-  (case [position direction]
-    [:bottom-left :right] {:label-side :left}
-    [:bottom-left :top] {:label-side :right}
-    [:bottom-right :left] {:label-side :right}
-    [:bottom-right :top] {:label-side :left}
-    [:top-left :right] {:label-side :right}
-    [:top-left :bottom] {:label-side :left}
-    [:top-right :left] {:label-side :left}
-    [:top-right :bottom] {:label-side :right}))
+(defn calc-angle [[x y]]
+  (* (js/Math.atan2 y x) (/ 180 js/Math.PI)))
 
-(def axis-defaults
-  {:x-axis {:position :bottom-left
-            :direction :right
-            }
-   :y-axis {:position :bottom-left
-            :direction :top
-            }})
+(defn ready-axis [{:keys [domain] :as axis} [[begin-x begin-y] [end-x end-y] :as coords]]
+  (let [displacement [(- end-x begin-x) (- end-y begin-y)]
+        range (js/Math.hypot (first displacement) (second displacement))]
+    (merge axis {:coords coords
+                 :displacement displacement
+                 :range range
+                 :angle (calc-angle displacement)
+                 :->range (scale-linear domain range)
+                 :->coords (fn [range-val]
+                             (let [ratio (/ range-val range)]
+                               (mapv #(+ (* ratio %)
+                                         %2)
+                                     displacement
+                                     (first coords))))})))
+
+(defn decide-on-viz [{:keys [axes] :as spec
+                      [size-x size-y] :range}]
+  (cond
+    (= 1 (count axes)) (update spec :axes (fn [axes]
+                                            (let [[f-id f-axis] (first axes)
+                                                  f-coords [[0 size-y] [size-x size-y]]
+                                                  ]
+                                              {f-id (ready-axis f-axis f-coords)
+                                               })))
+
+    (= 2 (count axes)) (update spec :axes (fn [axes]
+                                            (let [[f-id f-axis] (first axes)
+                                                  f-coords [[0 size-y] [size-x size-y]]
+                                                  [s-id s-axis] (second axes)
+                                                  s-coords [[0 size-y] [0 0]]
+                                                  ]
+                                              {f-id (ready-axis f-axis f-coords)
+                                               s-id (ready-axis s-axis s-coords)
+                                               })))
+    ))
+
+(defn derive-dts [spec]
+  (let [new-derived-data (->> (for [[dp-id dp] (:data spec)
+                                    [axis-id {:keys [val-path ->range ->coords]}] (:axes spec)
+                                    :let [range (->range (get-in dp val-path))]]
+                                {dp-id {axis-id {:range range
+                                                 :coords (->coords range)}}})
+                              (apply deep-merge))]
+    (assoc spec :derived-data new-derived-data)))
 
 (def spec*
-  (let [[range-x range-y] (get spec :range)]
-    (-> (merge-with merge axis-defaults spec)
-        (update :x-axis (fn [{:keys [position direction] :as axis}]
-                          (merge axis (label-defaults position direction))))
-        (update :y-axis (fn [{:keys [position direction] :as axis}]
-                          (merge axis (label-defaults position direction))))
-        (update :x-axis (fn [{:keys [domain scale direction] :as axis}]
-                          (let [range (case direction
-                                        :right range-x
-                                        :left range-x
-                                        :top range-y
-                                        :bottom range-y)]
-                            (assoc axis :->range (scale domain range)))))
-        (update :y-axis (fn [{:keys [domain scale direction] :as axis}]
-                          (let [range (case direction
-                                        :right range-x
-                                        :left range-x
-                                        :top range-y
-                                        :bottom range-y)]
-                            (assoc axis :->range (scale domain range)))))
-        )))
+  (-> spec
+      (decide-on-viz)
+      (derive-dts)))
 
 (defn svg [{[x y] :range} & childs]
   (into [:svg {:width x
                :height y}]
         childs))
 
-(defn axis [[range-x range-y]
-            {:keys [scale tick desc ->range direction position label-side]
-             [domain-start domain-end] :domain}]
-  (let [[begin-x begin-y] (case position
-                            :top-left [0 0]
-                            :top-right [range-x 0]
-                            :bottom-right [range-x range-y]
-                            :bottom-left [0 range-y])
-        range (case direction
-                :right range-x
-                :left range-x
-                :top range-y
-                :bottom range-y)
-        rotate (case direction
-                 :right 0
-                 :top -90
-                 :left -180
-                 :bottom -270)
-        label-offset (case label-side
-                       :right 10
-                       :left -10)]
-    [:g.axis {:transform (gstr/format "rotate(%s, %s, %s) translate(%s, %s)" rotate begin-x begin-y begin-x begin-y)}
+(defn axis [{:keys [range angle tick desc ->range]
+             [domain-start domain-end] :domain
+             [[begin-x begin-y] [end-x end-y]] :coords :as all}]
+  (let [label-offset -10 ;; TODO
+        ]
+    [:g.axis {:transform (gstr/format "rotate(%s, %s, %s) translate(%s, %s)" angle begin-x begin-y begin-x begin-y)}
      [:line {:x1 0 :y1 0
              :x2 range :y2 0}]
      [:path.pointer {:d (gstr/format "M%s %s L%s %s L%s %s" (- range 15) -5 range 0 (- range 15) 5)}]
@@ -135,34 +136,34 @@
       (let [amount-fit (/ (- domain-end domain-start) tick)]
         (map (fn [tick-idx]
                (let [domain-val (+ (* tick-idx tick) domain-start)
-                     scale-pos (->range domain-val)]
+                     range-pos (->range domain-val)]
                  ^{:key tick-idx}
                  [:g.tick
-                  [:circle.dash {:cx scale-pos
+                  [:circle.dash {:cx range-pos
                                  :cy 0}]
-                  [:text.val {:x scale-pos :y label-offset} domain-val]]))
+                  [:text.val {:x range-pos :y label-offset} domain-val]]))
              (clojure.core/range (inc amount-fit))))]]))
 
-(defn data-points [{{->x-range :->range
-                     x-val-path :val-path} :x-axis
-                    {->y-range :->range
-                     y-val-path :val-path} :y-axis
-                    :keys [data]
-                    [_ range-y] :range}]
-  [:g.data-points {:transform (gstr/format "translate(0, %s) scale(1, -1)" range-y)} ;; Not that good
-   (doall
-    (for [dp data]
-      (let [x (->x-range (get-in dp x-val-path))
-            y (->y-range (get-in dp y-val-path))]
-        ^{:key [x y]} ;; Not that unique
+(defn data-points [{:keys [derived-data axes]}]
+  [:g.data-points
+   (if (= 2 (count axes))
+     (for [[dp-id axes-result] derived-data
+           :let [x (-> axes-result vals first :coords first)
+                 y (-> axes-result vals second :coords second)]]
+       ^{:key dp-id}
+       [:circle {:cx x :cy y :r 5}])
+     (doall
+      (for [[dp-id axes-result] derived-data
+            [axis-id {[x y] :coords}] axes-result]
+        ^{:key [dp-id axis-id]}
         [:circle {:cx x :cy y :r 5}])))])
 
 (defn root []
   [:div#root
    [:style (garden.core/css styles)]
    [svg spec*
-    [axis (:range spec*) (:x-axis spec*)]
-    [axis (:range spec*) (:y-axis spec*)]
+    [axis (get-in spec* [:axes :production-axis])]
+    [axis (get-in spec* [:axes :speed-axis])]
     [data-points spec*]]])
 
 (r/render [root]
