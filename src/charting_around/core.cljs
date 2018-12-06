@@ -1,5 +1,6 @@
 (ns charting-around.core
   (:require [reagent.core :as r]
+            [reagent.ratom :as rr]
             [garden.core]
             [goog.string :as gstr]))
 
@@ -27,42 +28,26 @@
   (fn [domain-val]
     (* range (/ (- domain-val domain-start) (- domain-end domain-start)))))
 
-(def spec
-  {:range [800 300]
-   :axes {:production-axis
-          {:domain [2012 2020]
-           :scale scale-linear
-           :tick 1
-           :desc "Year"
-           :val-path [:production-year]}
+(defn rand-in
+  "Int in range, inclusive"
+  [left-bound right-bound]
+  (+ left-bound (rand-int (inc (- right-bound left-bound)))))
 
-          :speed-axis
-          {:domain [0 300]
-           :scale scale-linear
-           :tick 30
-           :desc "Top speed (km/h)"
-           :val-path [:top-speed]
-           }}
+(defn gen-data []
+  {:vp {:car-name "Volkswagen Polo"
+        :production-year (rand-in 2014 2018)
+        :top-speed (rand-in 150 220)}
 
-   :data {:vp {:car-name "Volkswagen Polo"
-               :production-year 2018
-               :top-speed 200}
+   :jmm {:car-name "Jaguar MM"
+         :production-year (rand-in 2012 2017)
+         :top-speed (rand-in 180 240)}
 
-          :jmm {:car-name "Jaguar MM"
-                :production-year 2017
-                :top-speed 280}
-
-          :si {:car-name "Subaru impreza"
-               :production-year 2016
-               :top-speed 250}}
-
-   :derived-data {:vp {:production-axis {}
-                       :speed-axis {}}
-                  :jmm {:production-axis {}}
-                  :si {:production-axis {}}}
-   })
+   :si {:car-name "Subaru impreza"
+        :production-year (rand-in 2016 2018)
+        :top-speed (rand-in 220 260)}})
 
 
+;; Logic
 (defn calc-angle [[x y]]
   (* (js/Math.atan2 y x) (/ 180 js/Math.PI)))
 
@@ -103,24 +88,70 @@
     ))
 
 (defn derive-dts [spec]
-  (let [new-derived-data (->> (for [[dp-id dp] (:data spec)
-                                    [axis-id {:keys [val-path ->range ->coords]}] (:axes spec)
-                                    :let [range (->range (get-in dp val-path))]]
-                                {dp-id {axis-id {:range range
-                                                 :coords (->coords range)}}})
-                              (apply deep-merge))]
-    (assoc spec :derived-data new-derived-data)))
+  (let [new-dps (->> (for [[dp-id dp] (:data spec)
+                           [axis-id {:keys [val-path ->range ->coords]}] (:axes spec)
+                           :let [range (->range (get-in dp val-path))
+                                 coords (->coords range)]]
+                       {dp-id {axis-id {:range range
+                                        :desired-coords coords}}})
+                     (apply deep-merge))]
+    (update spec :dps deep-merge new-dps)))
 
-(def spec*
+(defn complete-spec [spec]
   (-> spec
       (decide-on-viz)
       (derive-dts)))
 
-(defn svg [{[x y] :range} & childs]
-  (into [:svg {:width x
-               :height y}]
-        childs))
 
+
+
+(def spec (r/atom {:range [800 300]
+                   :axes {:production-axis
+                          {:domain [2012 2020]
+                           :scale scale-linear
+                           :tick 1
+                           :desc "Year"
+                           :val-path [:production-year]}
+
+                          :speed-axis
+                          {:domain [0 300]
+                           :scale scale-linear
+                           :tick 30
+                           :desc "Top speed (km/h)"
+                           :val-path [:top-speed]
+                           }}
+
+                   :dps {:vp {:production-axis {}
+                              :speed-axis {}}
+                         :jmm {:production-axis {}}
+                         :si {:production-axis {}}}
+                   }))
+
+(defn fill-spec [data]
+  (swap! spec (fn [spec] (-> (assoc spec :data data)
+                             (complete-spec)))))
+(fill-spec (gen-data))
+
+(defn displacement [[x1 y1] [x2 y2]]
+  [(- x1 x2) (- y1 y2)])
+(defn magnet-dps
+  "Magnets data points to their 'desired position'"
+  [spec]
+  (update spec :dps (fn [dps]
+                      (apply deep-merge
+                       (for [[ent-id axes-results] dps
+                             [axis-id {:keys [desired-coords current-coords] :as result}] axes-results]
+                         {ent-id {axis-id (assoc result :current-coords (if (nil? current-coords)
+                                                                          desired-coords
+                                                                          (let [[dx dy] (displacement desired-coords current-coords)
+                                                                                [current-x current-y] current-coords]
+                                                                            [(+ current-x (/ dx 10)) (+ current-y (/ dy 10))])))}})))))
+
+(js/setInterval #(swap! spec magnet-dps) 16)
+
+
+
+;; View
 (defn axis [{:keys [range angle tick desc ->range]
              [domain-start domain-end] :domain
              [[begin-x begin-y] [end-x end-y]] :coords :as all}]
@@ -144,27 +175,35 @@
                   [:text.val {:x range-pos :y label-offset} domain-val]]))
              (clojure.core/range (inc amount-fit))))]]))
 
-(defn data-points [{:keys [derived-data axes]}]
+(defn data-points [{:keys [dps axes]}]
   [:g.data-points
    (if (= 2 (count axes))
-     (for [[dp-id axes-result] derived-data
-           :let [x (-> axes-result vals first :coords first)
-                 y (-> axes-result vals second :coords second)]]
+     (for [[dp-id axes-result] dps
+           :let [x (-> axes-result vals first :current-coords first)
+                 y (-> axes-result vals second :current-coords second)]]
        ^{:key dp-id}
        [:circle {:cx x :cy y :r 5}])
      (doall
-      (for [[dp-id axes-result] derived-data
+      (for [[dp-id axes-result] dps
             [axis-id {[x y] :coords}] axes-result]
         ^{:key [dp-id axis-id]}
         [:circle {:cx x :cy y :r 5}])))])
 
+(defn svg [{[x y] :range :as spec}]
+  (conj [:svg {:width x
+               :height y}]
+        [axis (get-in spec [:axes :production-axis])]
+        [axis (get-in spec [:axes :speed-axis])]
+        [data-points spec]))
+
 (defn root []
   [:div#root
    [:style (garden.core/css styles)]
-   [svg spec*
-    [axis (get-in spec* [:axes :production-axis])]
-    [axis (get-in spec* [:axes :speed-axis])]
-    [data-points spec*]]])
+   [svg @spec]
+   [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]
+   ])
 
 (r/render [root]
           (.-body js/document))
+
+
