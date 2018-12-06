@@ -55,6 +55,7 @@
   (let [displacement [(- end-x begin-x) (- end-y begin-y)]
         range (js/Math.hypot (first displacement) (second displacement))]
     (merge axis {:coords coords
+                 :hide-unused true
                  :displacement displacement
                  :range range
                  :angle (calc-angle displacement)
@@ -118,6 +119,7 @@
                            :scale scale-linear
                            :tick 30
                            :desc "Top speed (km/h)"
+                           :desc-side :right
                            :val-path [:top-speed]
                            }}
 
@@ -134,8 +136,8 @@
 
 (defn displacement [[x1 y1] [x2 y2]]
   [(- x1 x2) (- y1 y2)])
-(defn magnet-dps
-  "Magnets data points to their 'desired position'"
+(defn sys-magnet
+  "Magnets entities to their :desired-coords"
   [spec]
   (update spec :dps (fn [dps]
                       (apply deep-merge
@@ -147,15 +149,17 @@
                                                                                 [current-x current-y] current-coords]
                                                                             [(+ current-x (/ dx 10)) (+ current-y (/ dy 10))])))}})))))
 
-(js/setInterval #(swap! spec magnet-dps) 16)
+(js/setInterval #(swap! spec sys-magnet) 16)
 
 
 
 ;; View
-(defn axis [{:keys [range angle tick desc ->range]
+(defn axis [{:keys [range angle tick desc desc-side ->range]
              [domain-start domain-end] :domain
              [[begin-x begin-y] [end-x end-y]] :coords :as all}]
-  (let [label-offset -10 ;; TODO
+  (let [label-offset (case desc-side
+                       :right 10
+                       -10) ;; TODO
         ]
     [:g.axis {:transform (gstr/format "rotate(%s, %s, %s) translate(%s, %s)" angle begin-x begin-y begin-x begin-y)}
      [:line {:x1 0 :y1 0
