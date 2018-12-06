@@ -1,7 +1,11 @@
 (ns charting-around.core
-  (:require [reagent.core :as r]
-            [garden.core]
-            [goog.string :as gstr]))
+  (:require [clojure.string]
+            #?(:cljs [reagent.core :as r])
+            #?(:cljs [goog.string :as gstr])))
+
+(def app-state #?(:clj (atom {}) :cljs (r/atom {})))
+
+#?(:cljs (def format gstr/format))
 
 (defn l [desc expr]
   (println desc expr)
@@ -11,17 +15,6 @@
   (if (not (every? map? colls))
     (last colls)
     (apply merge-with deep-merge colls)))
-
-(def styles
-  [[:svg {:display "block"
-          :margin-left "auto"
-          :margin-right "auto"}]
-   [:.axis
-    [:line {:stroke "red"}]
-    [:text {:font-size "15px"}]
-    [:.tick
-     [:.dash {:r 3 :fill "orange"}]
-     [:.val {:font-size "10px"}]]]])
 
 (defn scale-linear [[domain-start domain-end] range]
   (fn [domain-val]
@@ -62,13 +55,12 @@
                   :si {:production-axis {}}}
    })
 
-
 (defn calc-angle [[x y]]
-  (* (js/Math.atan2 y x) (/ 180 js/Math.PI)))
+  (* (Math/atan2 y x) (/ 180 Math/PI)))
 
 (defn ready-axis [{:keys [domain] :as axis} [[begin-x begin-y] [end-x end-y] :as coords]]
   (let [displacement [(- end-x begin-x) (- end-y begin-y)]
-        range (js/Math.hypot (first displacement) (second displacement))]
+        range (Math/hypot (first displacement) (second displacement))]
     (merge axis {:coords coords
                  :displacement displacement
                  :range range
@@ -116,55 +108,24 @@
       (decide-on-viz)
       (derive-dts)))
 
-(defn svg [{[x y] :range} & childs]
-  (into [:svg {:width x
-               :height y}]
-        childs))
+(defn make-state []
+  spec*)
 
-(defn axis [{:keys [range angle tick desc ->range]
-             [domain-start domain-end] :domain
-             [[begin-x begin-y] [end-x end-y]] :coords :as all}]
-  (let [label-offset -10 ;; TODO
-        ]
-    [:g.axis {:transform (gstr/format "rotate(%s, %s, %s) translate(%s, %s)" angle begin-x begin-y begin-x begin-y)}
-     [:line {:x1 0 :y1 0
-             :x2 range :y2 0}]
-     [:path.pointer {:d (gstr/format "M%s %s L%s %s L%s %s" (- range 15) -5 range 0 (- range 15) 5)}]
-     [:text {:x (/ range 2)
-             :y (* 2.5 label-offset)} desc]
-     [:g
-      (let [amount-fit (/ (- domain-end domain-start) tick)]
-        (map (fn [tick-idx]
-               (let [domain-val (+ (* tick-idx tick) domain-start)
-                     range-pos (->range domain-val)]
-                 ^{:key tick-idx}
-                 [:g.tick
-                  [:circle.dash {:cx range-pos
-                                 :cy 0}]
-                  [:text.val {:x range-pos :y label-offset} domain-val]]))
-             (clojure.core/range (inc amount-fit))))]]))
+(defn update-top-speeds [state {n :n}]
+  (-> state
+    (assoc-in [:data :vp :top-speed] (- 200 n))
+    (assoc-in [:data :jmm :top-speed] (mod n 300))
+    (assoc-in [:data :si :top-speed] (+ 100 (* 100 (Math/cos (/ 200 n)))))
+    decide-on-viz
+    derive-dts))
 
-(defn data-points [{:keys [derived-data axes]}]
-  [:g.data-points
-   (if (= 2 (count axes))
-     (for [[dp-id axes-result] derived-data
-           :let [x (-> axes-result vals first :coords first)
-                 y (-> axes-result vals second :coords second)]]
-       ^{:key dp-id}
-       [:circle {:cx x :cy y :r 5}])
-     (doall
-      (for [[dp-id axes-result] derived-data
-            [axis-id {[x y] :coords}] axes-result]
-        ^{:key [dp-id axis-id]}
-        [:circle {:cx x :cy y :r 5}])))])
+(defn update-fn [message]
+  update-top-speeds)
 
-(defn root []
-  [:div#root
-   [:style (garden.core/css styles)]
-   [svg spec*
-    [axis (get-in spec* [:axes :production-axis])]
-    [axis (get-in spec* [:axes :speed-axis])]
-    [data-points spec*]]])
+(defn handle-message!
+  ([message]
+    (handle-message! message (update-fn message)))
+  ([message f]
+    (swap! app-state (fn [s] (f s message)))))
 
-(r/render [root]
-          (.-body js/document))
+
