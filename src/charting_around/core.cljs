@@ -4,6 +4,8 @@
             [garden.core]
             [goog.string :as gstr]))
 
+(enable-console-print!)
+
 (defn l [desc expr]
   (println desc expr)
   expr)
@@ -123,10 +125,7 @@
                            :val-path [:top-speed]
                            }}
 
-                   :dps {:vp {:production-axis {}
-                              :speed-axis {}}
-                         :jmm {:production-axis {}}
-                         :si {:production-axis {}}}
+                   :ents {:ent-id {:comp :param}}
                    }))
 
 (defn fill-spec [data]
@@ -205,6 +204,7 @@
    [:style (garden.core/css styles)]
    [svg @spec]
    [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]
+
    ])
 
 (r/render [root]
