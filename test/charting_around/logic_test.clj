@@ -5,11 +5,6 @@
              [matcho.core :refer [assert match]]
              ))
 
-
-(defn wait [db ms]
-  (Thread/sleep ms)
-  db)
-
 (defn failed-test-line-number []
   (let [trace (->> (.. Thread currentThread getStackTrace)
                    (map (fn [el] (str (.getFileName el) ":" (.getLineNumber el))))
@@ -23,26 +18,34 @@
   db)
 
 
-(reset-state!)
+(reset! state (merge init-state
+                     {:racers {:rokko {:name "Rokko" :skill 0.6}
+                               :kokko {:name "Kokko" :skill 1}
+                               :mokko {:name "Mokko" :skill 0.8}}}))
+
 (deftest logic-test
   (testing "BLAH"
-    (>evt [:add-participant {:id "Rokko" :skill 0.6}])
-    (>evt [:add-participant {:id "Mokko" :skill 0.8}])
-    (>evt [:add-participant {:id "Kokko" :skill 1}])
-    (>evt [:add-bet {:bet-id :bet1 :on "Rokko" :bet-place 3 :chance 80}])
-    (>evt [:add-bet {:bet-id :bet2 :on "Mokko" :bet-place 1 :chance 90}])
+    (>evt [:toggle-participant :rokko])
+    (>evt [:toggle-participant :mokko])
+    (>evt [:toggle-participant :kokko])
+    (>evt [:place-bet :rokko {:place 3 :chance 80}])
+    (>evt [:place-bet :mokko {:place 1 :chance 90}])
     (>evt [:race])
-    (is (= 1 2))
-    (assert {:bet1 {:on "Rokko"
-                    :guessed? true
-                    :bet-place 3
-                    :actual-place 3
-                    :money 80}
-             :bet2 {:on "Mokko"
-                    :guessed? false
-                    :bet-place 1
-                    :actual-place 2
-                    :money 90}} (<sub [:results]))))
+    (assert {:rokko {:bet {:guessed? true}}
+             :mokko {:bet {:guessed? false}}} (l 11 (<sub [:results])))
+    (assert [-10]
+            (<sub [:wins-history])))
+
+  (testing "Bet swap"
+    (>evt [:place-bet :rokko {:place 3}])
+    (>evt [:place-bet :mokko {:place 1}])
+    (assert {:rokko {:bet {:place 3}}
+             :mokko {:bet {:place 1}}} (l 22 (<sub [:results])))
+    (>evt [:place-bet :rokko {:place 1}])
+    (assert {:rokko {:bet {:place 1}}
+             :mokko {:bet {:place 3}}} (l 33 (<sub [:results])))
+
+    ))
 
 
 

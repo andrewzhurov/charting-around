@@ -1,6 +1,19 @@
 # Purpose
 Playing around dataviz, charts
 
+# TODOS
+- radar chart
+-- racer's complex stats
+-- on chart
+- dp on-hover
+- dp on-select
+- curved range path
+-- use for track representation
+--- project racer position on track
+---- complect track (types of terrain, other aspects)
+----- affect racer's speed
+
+
 # Dev flow
 Compile and serve cljs
 

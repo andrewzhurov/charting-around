@@ -2,12 +2,15 @@
   (:require [reagent.core :as r]
             [reagent.ratom :as rr]
             [garden.core]
-            [goog.string :as gstr]))
+            [goog.string :as gstr]
+            [charting-around.logic :refer [state stages >evt <sub]]
+            [charting-around.css]
+            ))
 
 (enable-console-print!)
 
 (defn l [desc expr]
-  (println desc expr)
+  (js/console.log desc expr)
   expr)
 
 (defn deep-merge [& colls]
@@ -15,16 +18,7 @@
     (last colls)
     (apply merge-with deep-merge colls)))
 
-(def styles
-  [[:svg {:display "block"
-          :margin-left "auto"
-          :margin-right "auto"}]
-   [:.axis
-    [:line {:stroke "red"}]
-    [:text {:font-size "15px"}]
-    [:.tick
-     [:.dash {:r 3 :fill "orange"}]
-     [:.val {:font-size "10px"}]]]])
+
 
 (defn scale-linear [[domain-start domain-end] range]
   (fn [domain-val]
@@ -199,12 +193,104 @@
         [axis (get-in spec [:axes :speed-axis])]
         [data-points spec]))
 
+
+(defn chart []
+  [:div
+   [svg @spec]
+   [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]])
+
+(defn stats []
+  [:div.stats (pr-str @state) "STATS:" [chart]])
+
+(defmulti stage-content :stage)
+
+(defmethod stage-content :participants
+  [{:keys [racers]}]
+  [:div.stage-content.participants
+   [:div.collection.with-header
+    [:div.collection-header [:h4 "Participants"]]
+    (for [[pt-id {:keys [name skill participates?]}] racers]
+      ^{:key pt-id}
+      [:a.collection-item {:class (when participates? "active")
+                           :on-click #(>evt [:toggle-participant pt-id])}
+       (str name " "  skill)])]
+   ])
+
+(defn driver [{:keys [id name avatar skill]}]
+  [:div.driver {:draggable true
+                :on-drag-start (fn [evt] (.setData (.-dataTransfer evt) "pt-id" id))
+                :id id}
+   [:div.avatar avatar]
+   [:div.name name]
+   [:div.skill skill]])
+
+(defmethod stage-content :bets
+  [state]
+  (let [pts (filter (comp :participates? val) (:racers state))
+        {left-drivers false
+         betted-drivers true} (l 0 (group-by (comp boolean :bet val) pts))]
+    [:div#bets.stage-content "BETS:"
+     [:div.drivers
+      (for [[pt-id dr] left-drivers]
+        ^{:key pt-id}
+        [driver dr])]
+
+     [:div.bets
+      (for [place (range 1 (inc (count pts)))
+            :let [[id {{:keys [chance]} :bet :as dr}] (first (filter (comp #{place} :place :bet val) betted-drivers))]]
+        (let [node-id (str "p" place)]
+          ^{:key place}
+          [:div.bet {:id node-id
+                     :on-drop (fn [evt]
+                                (println "DROP!")
+                                (.setAttribute (js/document.getElementById node-id) "hover-over" false)
+                                (let [pt-id (.getData (.-dataTransfer evt) "pt-id")]
+                                  (>evt [:place-bet pt-id {:place place :chance 80}])))
+                     :on-drag-over (fn [evt] (.preventDefault evt))
+                     :on-drag-enter (fn [evt] (.setAttribute (js/document.getElementById node-id) "hover-over" true))
+                     :on-drag-leave (fn [evt] (.setAttribute (js/document.getElementById node-id) "hover-over" false))
+                     }
+           [:div.place place]
+           (when dr [driver dr])
+           (when chance [:input.chance {:type :range
+                                        :value chance
+                                        :on-change #(>evt [:place-bet id {:place place :chance (.-value (.-target %))}])}])]))]]))
+
+(defmethod stage-content :race
+  [state]
+  [:div#race.stage-content "RACE PROGRESS"
+   ])
+(defmethod stage-content :results
+  [state]
+  [:div#results.stage-content "RESULTS"
+   (str (<sub [:wins-history]))])
+
+#_(defmulti stage :stage)
+#_(defmethod stage :participants
+  [state]
+  [:div.stage.participants
+   ])
+
+(defn stage []
+  (let [stage-id (:stage @state)
+        {:keys [name next prev]} (get stages stage-id)]
+    [:div.stage
+     [stats]
+     [stage-content @state]
+     (when prev [:button.prev {:on-click #(>evt [:to-stage prev])} prev])
+     (when next [:button.next {:on-click #(do (>evt [:to-stage next])
+                                              (when (= :race next)
+                                                (>evt [:race])))} next])]))
+
+
+
 (defn root []
   [:div#root
-   [:style (garden.core/css styles)]
-   [svg @spec]
-   [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]
+   [:style (garden.core/css charting-around.css/styles)]
+   [:link {:rel "stylesheet"
+           :href "https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"}]
 
+   [stage]
    ])
 
 (r/render [root]
