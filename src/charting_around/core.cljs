@@ -32,15 +32,24 @@
 (defn gen-data []
   {:vp {:car-name "Volkswagen Polo"
         :production-year (rand-in 2014 2018)
-        :top-speed (rand-in 150 220)}
+        :top-speed (rand-in 150 220)
+        :transmission 6
+        :horsepower (rand-in 150 280)
+        :weight 1400}
 
    :jmm {:car-name "Jaguar MM"
-         :production-year (rand-in 2012 2017)
-         :top-speed (rand-in 180 240)}
+         :production-year (rand-in 2013 2017)
+         :top-speed (rand-in 180 240)
+         :horsepower (rand-in 300 400)
+         :weight 1500}
 
    :si {:car-name "Subaru impreza"
         :production-year (rand-in 2016 2018)
-        :top-speed (rand-in 220 260)}})
+        :top-speed (rand-in 220 260)
+        :transmission 8
+        :horsepower (rand-in 250 400)
+        :weight 1200}
+   })
 
 
 ;; Logic
@@ -66,33 +75,30 @@
 (defn decide-on-viz [{:keys [axes] :as spec
                       [size-x size-y] :range}]
   (cond
-    (= 1 (count axes)) (update spec :axes (fn [axes]
-                                            (let [[f-id f-axis] (first axes)
-                                                  f-coords [[0 size-y] [size-x size-y]]
-                                                  ]
-                                              {f-id (ready-axis f-axis f-coords)
-                                               })))
+    (= 1 (count axes)) (update spec :axes (fn [[f-axis]]
+                                            (let [f-coords [[0 size-y] [size-x size-y]]]
+                                              [(ready-axis f-axis f-coords)])))
 
-    (= 2 (count axes)) (update spec :axes (fn [axes]
-                                            (let [[f-id f-axis] (first axes)
-                                                  f-coords [[0 size-y] [size-x size-y]]
-                                                  [s-id s-axis] (second axes)
-                                                  s-coords [[0 size-y] [0 0]]
-                                                  ]
-                                              {f-id (ready-axis f-axis f-coords)
-                                               s-id (ready-axis s-axis s-coords)
-                                               })))
+    (= 2 (count axes)) (update spec :axes (fn [[f-axis s-axis]]
+                                            (let [f-coords [[0 size-y] [size-x size-y]]
+                                                  s-coords [[0 size-y] [0 0]]]
+                                              [(ready-axis f-axis f-coords)
+                                               (ready-axis s-axis s-coords)])))
     ))
 
 (defn derive-dts [spec]
   (let [new-dps (->> (for [[dp-id dp] (:data spec)
-                           [axis-id {:keys [val-path ->range ->coords]}] (:axes spec)
+                           {:keys [val-path ->range ->coords]} (:axes spec)
                            :let [range (->range (get-in dp val-path))
                                  coords (->coords range)]]
-                       {dp-id {axis-id {:range range
-                                        :desired-coords coords}}})
-                     (apply deep-merge))]
+                       {[dp-id val-path] {:range range
+                                          :desired-coords coords}})
+                     (apply merge))]
     (update spec :dps deep-merge new-dps)))
+
+;0-100
+;402m time
+;100-200
 
 (defn complete-spec [spec]
   (-> spec
@@ -100,24 +106,19 @@
       (derive-dts)))
 
 
-
-
 (def spec (r/atom {:range [800 300]
-                   :axes {:production-axis
-                          {:domain [2012 2020]
+                   :axes [{:domain [2012 2020]
                            :scale scale-linear
                            :tick 1
                            :desc "Year"
                            :val-path [:production-year]}
-
-                          :speed-axis
                           {:domain [0 300]
                            :scale scale-linear
                            :tick 30
                            :desc "Top speed (km/h)"
                            :desc-side :right
                            :val-path [:top-speed]
-                           }}
+                           }]
 
                    :ents {:ent-id {:comp :param}}
                    }))
@@ -133,14 +134,13 @@
   "Magnets entities to their :desired-coords"
   [spec]
   (update spec :dps (fn [dps]
-                      (apply deep-merge
-                       (for [[ent-id axes-results] dps
-                             [axis-id {:keys [desired-coords current-coords] :as result}] axes-results]
-                         {ent-id {axis-id (assoc result :current-coords (if (nil? current-coords)
-                                                                          desired-coords
-                                                                          (let [[dx dy] (displacement desired-coords current-coords)
-                                                                                [current-x current-y] current-coords]
-                                                                            [(+ current-x (/ dx 10)) (+ current-y (/ dy 10))])))}})))))
+                      (apply merge
+                             (for [[id {:keys [desired-coords current-coords] :as result}] dps]
+                               {id (assoc result :current-coords (if (nil? current-coords)
+                                                                   desired-coords
+                                                                   (let [[dx dy] (displacement desired-coords current-coords)
+                                                                         [current-x current-y] current-coords]
+                                                                     [(+ current-x (/ dx 10)) (+ current-y (/ dy 10))])))})))))
 
 (js/setInterval #(swap! spec sys-magnet) 16)
 
@@ -175,23 +175,24 @@
 (defn data-points [{:keys [dps axes]}]
   [:g.data-points
    (if (= 2 (count axes))
-     (for [[dp-id axes-result] dps
-           :let [x (-> axes-result vals first :current-coords first)
-                 y (-> axes-result vals second :current-coords second)]]
-       ^{:key dp-id}
+     (for [[ent-id [[_ axes-x] [_ axes-y]]] (group-by (fn [[[ent-id _] _]] ent-id) dps)
+           :let [x (-> axes-x :current-coords first)
+                 y (-> axes-y :current-coords second)]]
+       ^{:key ent-id}
        [:circle {:cx x :cy y :r 5}])
      (doall
-      (for [[dp-id axes-result] dps
-            [axis-id {[x y] :coords}] axes-result]
-        ^{:key [dp-id axis-id]}
+      (for [[id {[x y] :current-coords}] dps]
+        ^{:key id}
         [:circle {:cx x :cy y :r 5}])))])
 
 (defn svg [{[x y] :range :as spec}]
-  (conj [:svg {:width x
-               :height y}]
-        [axis (get-in spec [:axes :production-axis])]
-        [axis (get-in spec [:axes :speed-axis])]
-        [data-points spec]))
+  [:div
+   [:div "SPEC:" (pr-str (:axes spec))]
+   (conj [:svg {:width x
+                :height y}]
+         [axis (get-in spec [:axes 0])]
+         [axis (get-in spec [:axes 1])]
+         [data-points spec])])
 
 
 (defn chart []
@@ -199,8 +200,44 @@
    [svg @spec]
    [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]])
 
+#_(defn chart []
+  (let [[center-x center-y] [315 120]
+        data [{:name :a :domain-min 0 :domain-max 100  :value-min 15 :value-max 75}
+              {:name :b :domain-min 5 :domain-max 120  :value-min 75 :value-max 110}
+              {:name :c :domain-min 15 :domain-max 30  :value-min 20 :value-max 25}
+              {:name :d :domain-min -10 :domain-max 10 :value-min -5 :value-max 7}
+              {:name :e :domain-min 3 :domain-max 30   :value-min 5 :value-max 25}]
+        range 100
+        sector-angle (/ 360 (count data))
+        start-angle -90
+        domain->range (fn [domain-min domain-max]
+                        (let [domain-range (- domain-max domain-min)]
+                          (fn [range]
+                            (fn [x]
+                              (* (/ range domain-range) (- x domain-min))))))]
+    [:svg {:width "100%"
+           :height "100%"}
+     [:g.chart.radar {:transform (gstr/format "translate(%s,%s)" center-x center-y)}
+      (map-indexed
+       (fn [idx {:keys [name domain-min domain-max value-min value-max]}]
+         (let [->r ((domain->range domain-min domain-max) range)
+               r-min (->r value-min)
+               r-max (->r value-max)]
+           ^{:key name}
+           [:g {:transform (gstr/format "rotate(%s)" (+ start-angle (* idx sector-angle)))}
+            [:line.axis {:x1 0 :y1 0 :x2 range :y2 0
+                         }]
+            [:line.domain {:x1 r-min :y1 0 :x2 r-max :y2 0
+                           }]
+            [:text {:x (->r value-min)} value-min]
+            [:circle.tick.min {:cx (->r value-min)
+                               :cy 0}]
+            [:circle.tick.max {:cx (->r value-max)
+                               :cy 0}]]))
+       data)]]))
+
 (defn stats []
-  [:div.stats (pr-str @state) "STATS:" [chart]])
+  [:div.stats [chart]])
 
 (defmulti stage-content :stage)
 
@@ -228,7 +265,7 @@
   [state]
   (let [pts (filter (comp :participates? val) (:racers state))
         {left-drivers false
-         betted-drivers true} (l 0 (group-by (comp boolean :bet val) pts))]
+         betted-drivers true} (group-by (comp boolean :bet val) pts)]
     [:div#bets.stage-content "BETS:"
      [:div.drivers
       (for [[pt-id dr] left-drivers]

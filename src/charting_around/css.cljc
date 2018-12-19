@@ -82,6 +82,14 @@
              :background-color "bronze"}]
      ]
     [".bet[hover-over=true]" {:border "2px dashed cadetblue !important"}]
+    ]
+
+   [:.chart.radar
+    [:line.axis {:stroke-width "1px" :stroke "lightgray"}]
+    [:line.domain {:stroke-width "2px" :stroke "orange"}]
+    [:.tick.min {:r 2 :fill "gray"}]
+    [:.tick.max {:r 2 :fill "red"}]
+    [:text {:font-size "10px"}]
     ]])
 
 
