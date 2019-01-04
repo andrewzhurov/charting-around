@@ -205,10 +205,10 @@
    ])
 
 (defn decide-on-viz2 [data criteria-meta field]
-  (let [criteria (sort (keys (filter (comp :in-display? val) criteria-meta)))]
+  (let [criteria (filter (comp :in-display? val) (sort-by key criteria-meta))]
     (vec
      (map-indexed
-      (fn [idx val-path]
+      (fn [idx [val-path meta]]
         (let [[domain-min domain-max] (->> data
                                            (map #(get-in % val-path))
                                            (sort)
@@ -219,12 +219,14 @@
               domain-max (+ domain-max
                             (* (/ size 100) max-pad))
               angle (* (/ 360 (count criteria)) idx)]
-          (ready-axis2 {:angle angle
-                        :val-path val-path
-                        :domain [domain-min domain-max]
-                        :min-domain-viz min
-                        :max-domain-viz max
-                        :desc (pr-str val-path)}
+          (ready-axis2 (merge
+                        {:angle angle
+                         :val-path val-path
+                         :domain [domain-min domain-max]
+                         :min-domain-viz min
+                         :max-domain-viz max
+                         :desc (pr-str val-path)}
+                        meta)
                        [(center field)
                         (point-coords (center field) angle (-> (apply min field)
                                                                (/ 2)))])))
@@ -252,6 +254,9 @@
                                                 :in-inspect? false}
                             [:weight]          {:in-display? true
                                                 :in-inspect? false}}))
+(def inspect-criteria (fn [val-path] (swap! criteria-meta update-in [val-path :in-inspect?] not)))
+(def display-criteria (fn [val-path] (swap! criteria-meta update-in [val-path :in-display?] not)))
+
 
 (def p-field [400 400])
 (def p-axes
@@ -261,11 +266,12 @@
 
 (defn derive-dps2 [p p-axes]
   (->> (for [{:keys [id] :as dp} p
-             {:keys [val-path ->range ->coords]} p-axes
+             {:keys [val-path ->range ->coords in-inspect?]} p-axes
              :let [domain-val (get-in dp val-path)
                    range (->range domain-val)
                    coords (->coords range)]]
          {[id val-path] {:range range
+                         :in-inspect? in-inspect?
                          :desired-coords coords
                          :domain-val domain-val}})
        (apply merge)))
@@ -351,6 +357,8 @@
                :x2 x2 :y2 y2
                :stroke-width "2px"
                :stroke "orange"
+               :on-mouse-enter #(inspect-criteria val-path)
+               :on-mouse-leave #(inspect-criteria val-path)
                }]
        (let [char-w 7
              w (* (count (pr-str val-path)) char-w)
@@ -471,9 +479,10 @@
                    :fill color
                    :stroke color}]
         (for [[dp-id {[x y] :desired-coords
-                      :keys [domain-val]}] ent-dps]
+                      :keys [domain-val in-inspect?]}] ent-dps]
           ^{:key dp-id}
-          [:g.criteria {:transform (gstr/format "translate(%s, %s)" x y)}
+          [:g.criteria {:class (when in-inspect? "in-inspect")
+                        :transform (gstr/format "translate(%s, %s)" x y)}
            [:circle {:r 3 :fill color}]
            [:text {:fill "#404040"} (pr-str domain-val)]]
           )])
@@ -620,10 +629,11 @@
    (for [[val-path {:keys [in-display?]}] (sort-by key (l 0 @criteria-meta))]
      ^{:key val-path}
      [:div.criteria.chip {:class (when in-display? "in-display")
-                          :on-mouse-over
-                          #(swap! criteria-meta update-in [val-path :in-inspect?] not)
-                          :on-click
-                          #(swap! criteria-meta update-in [val-path :in-display?] not)}
+                          :on-mouse-enter #(inspect-criteria val-path)
+                          :on-mouse-leave #(inspect-criteria val-path)
+
+                          :on-click #(display-criteria val-path)
+                          }
       (pr-str val-path)]
      )])
 

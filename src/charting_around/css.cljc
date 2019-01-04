@@ -86,18 +86,19 @@
     ]
 
    [:.entity-polygon
-    [:.criteria {:visibility "hidden"}]
+    [:.criteria {:visibility "hidden"}
+     [:&.in-inspect {:visibility "visible"}]]
     [:polygon {:fill-opacity 0.3
                :stroke-width "0px"
-               :cursor "pointer"}]]
+               :cursor "pointer"}]
 
-   [:&.in-inspect
-    [:polygon {:fill-opacity 0.4
-               :stroke-width "1px"}]
-    [:.criteria {:visibility "visible"}]]
-   [:&.in-select
-    [:polygon {:stroke-width "2px !important"}]
-    ]
+    [:&.in-inspect
+     [:polygon {:fill-opacity 0.4
+                :stroke-width "1px"}]
+     [:.criteria {:visibility "visible"}]]
+    [:&.in-select
+     [:polygon {:stroke-width "2px !important"}]
+     ]]
 
    [:.criteria-list
     [:.criteria {:background-color "lightgray"
