@@ -17,7 +17,8 @@
 
 (def styles
   [[:#root {:position "absolute"
-            :top 0 :left 0 :right 0 :bottom 0}]
+            :top 0 :left 0 :right 0 :bottom 0
+            :transition "0.2s"}]
    [:.stage {:height "100%"
              :width "100%"
              :display "grid"
@@ -83,6 +84,34 @@
      ]
     [".bet[hover-over=true]" {:border "2px dashed cadetblue !important"}]
     ]
+
+   [:.entity-polygon
+    [:.criteria {:visibility "hidden"}]
+    [:polygon {:fill-opacity 0.3
+               :stroke-width "0px"
+               :cursor "pointer"}]]
+
+   [:&.in-inspect
+    [:polygon {:fill-opacity 0.4
+               :stroke-width "1px"}]
+    [:.criteria {:visibility "visible"}]]
+   [:&.in-select
+    [:polygon {:stroke-width "2px !important"}]
+    ]
+
+   [:.criteria-list
+    [:.criteria {:background-color "lightgray"
+                 :cursor "pointer"}]
+    [:.criteria.in-display {:background-color "#2bbbad"}]]
+
+   [:.participants-list
+    {:display "flex"}
+    [:.participant {:margin-right "5px"
+                    :padding "3px"
+                    :border-width "1px"
+                    :cursor "pointer"
+                    :transition "border-width 0.2s"}]
+    [:.participant.in-select {:border-width "2px"}]]
 
    [:.chart.radar
     [:line.axis {:stroke-width "1px" :stroke "lightgray"}]
