@@ -3,7 +3,7 @@
             [reagent.ratom :as ra]
             [garden.core]
             [goog.string :as gstr]
-            [charting-around.logic :refer [state stages >evt <sub]]
+            [charting-around.logic :as logic :refer [state stages >evt <sub]]
             [charting-around.css]
             ))
 
@@ -20,73 +20,24 @@
     (apply merge-with deep-merge colls)))
 
 
-
 (defn scale-linear [[domain-start domain-end] range]
   (fn [domain-val]
     (* range (/ (- domain-val domain-start) (- domain-end domain-start)))))
 
-(defn rand-in
-  "Int in range, inclusive"
-  [left-bound right-bound]
-  (+ left-bound (rand-int (inc (- right-bound left-bound)))))
 
-(defn gen-data []
-  [{:id :vp
-    :driver-name "Dalas"
-    :car-name "Volkswagen Polo"
-    :production-year (rand-in 2014 2018)
-    :top-speed (rand-in 150 220)
-    :transmission (rand-in 4 8)
-    :horsepower (rand-in 150 280)
-    :weight (rand-in 1200 1400)}
 
-   {:id :jmm
-    :driver-name "Paul"
-    :car-name "Jaguar MM"
-    :production-year (rand-in 2013 2017)
-    :top-speed (rand-in 180 240)
-    :transmission (rand-in 4 8)
-    :horsepower (rand-in 300 400)
-    :weight (rand-in 1300 1600)}
+;; Defs
+(def p-field [400 400])
+(def center-coords [(/ (get p-field 0) 2) (/ (get p-field 1) 2)])
+(def min-pad 20) ; % of domain
+(def max-pad 10) ; % of domain
 
-   {:id :su
-    :car-name "Subaru impreza"
-    :driver-name "No face 1"
-    :production-year (rand-in 2016 2018)
-    :top-speed (rand-in 220 260)
-    :transmission (rand-in 4 8)
-    :horsepower (rand-in 250 400)
-    :weight (rand-in 900 1300)}
-
-   {:id :su2
-    :car-name "Subaru impreza"
-    :driver-name "No face 2"
-    :production-year (rand-in 2016 2018)
-    :top-speed (rand-in 220 260)
-    :transmission (rand-in 4 8)
-    :horsepower (rand-in 250 400)
-    :weight (rand-in 900 1300)}
-
-   {:id :su3
-    :car-name "Subaru impreza"
-    :driver-name "No face 3"
-    :production-year (rand-in 2016 2018)
-    :top-speed (rand-in 220 260)
-    :transmission (rand-in 4 8)
-    :horsepower (rand-in 250 400)
-    :weight (rand-in 900 1300)}
-
-   ]
-  )
 
 
 ;; Logic
 (defn calc-angle [[x y]]
   (* (js/Math.atan2 y x) (/ 180 js/Math.PI)))
 
-
-(def min-pad 20) ; % of domain
-(def max-pad 10) ; % of domain
 (defn ready-axis [{:keys [domain min-domain-viz max-domain-viz data] :as axis} [[begin-x begin-y] [end-x end-y] :as coords]]
   (let [displacement [(- end-x begin-x) (- end-y begin-y)]
         range (js/Math.hypot (first displacement) (second displacement))
@@ -105,31 +56,6 @@
                  :->range ->range
                  :->coords ->coords})))
 
-(defn decide-on-viz [{:keys [axes data] :as spec
-                      [size-x size-y] :range}]
-  (assoc spec :axes (vec (map-indexed (fn [idx {:keys [desc val-path domain] :as axis}]
-                                        (let [[min max] (->> data
-                                                              (map #(get-in % val-path))
-                                                              (sort)
-                                                              ((juxt first last)))
-                                              size (- max min)
-                                              min (- min
-                                                     (* (/ size 100) min-pad))
-                                              max (+ max
-                                                     (* (/ size 100) max-pad))]
-                                          (cond-> (merge axis
-                                                         {:domain (or domain [min max])
-                                                          :min-domain-viz min
-                                                          :max-domain-viz max
-                                                          :desc (or desc (pr-str val-path))})
-                                            (and (<= (count axes) 2)
-                                                 (= 0 idx))
-                                            (ready-axis [[0 size-y] [size-x size-y]])
-
-                                            (and (<= (count axes) 2)
-                                                 (= 1 idx))
-                                            (ready-axis [[0 size-y] [0 0]]))))
-                                      axes))))
 
 (defn derive-dps [spec]
   (let [new-dps (->> (for [{:keys [id] :as dp} (:data spec)
@@ -146,6 +72,7 @@
 ;402m time
 ;100-200
 
+(declare decide-on-viz)
 (defn complete-spec [spec]
   (-> spec
       (decide-on-viz)
@@ -190,7 +117,6 @@
 
 (defn rad [deg] (* (/ js/Math.PI 180) deg))
 
-(defn center [[x y]] [(/ x 2) (/ y 2)])
 (defn point-coords [[from-x from-y] angle size]
   [(->> angle
         (rad)
@@ -204,12 +130,41 @@
         (+ from-y))
    ])
 
+
+(defn decide-on-viz [{:keys [axes data] :as spec
+                      [size-x size-y] :range}]
+  (assoc spec :axes (vec (map-indexed (fn [idx {:keys [desc val-path domain] :as axis}]
+                                        (let [[min max] (->> data
+                                                              (map #(get-in % val-path))
+                                                              (sort)
+                                                              ((juxt first last)))
+                                              size (- max min)
+                                              min (- min
+                                                     (* (/ size 100) min-pad))
+                                              max (+ max
+                                                     (* (/ size 100) max-pad))]
+                                          (cond-> (merge axis
+                                                         {:domain (or domain [min max])
+                                                          :min-domain-viz min
+                                                          :max-domain-viz max
+                                                          :desc (or desc (pr-str val-path))})
+                                            (and (<= (count axes) 2)
+                                                 (= 0 idx))
+                                            (ready-axis [[0 size-y] [size-x size-y]])
+
+                                            (and (<= (count axes) 2)
+                                                 (= 1 idx))
+                                            (ready-axis [[0 size-y] [0 0]]))))
+                                      axes))))
+
 (defn decide-on-viz2 [data criteria-meta field]
   (let [criteria (filter (comp :in-display? val) (sort-by key criteria-meta))]
     (vec
      (map-indexed
       (fn [idx [val-path meta]]
+        (l "DATA:" data)
         (let [[domain-min domain-max] (->> data
+                                           vals
                                            (map #(get-in % val-path))
                                            (sort)
                                            ((juxt first last)))
@@ -227,22 +182,22 @@
                          :max-domain-viz max
                          :desc (pr-str val-path)}
                         meta)
-                       [(center field)
-                        (point-coords (center field) angle (-> (apply min field)
-                                                               (/ 2)))])))
+                       [center-coords
+                        (point-coords center-coords angle (-> (apply min field)
+                                                              (/ 2)))])))
       criteria))))
 
 ;; Participants chart
-(def current-at (r/atom (js/Date.now)))
-
 (def colors ["red" "green" "blue" "gray" "orange" "purple"])
+
+(def current-participants (ra/reaction (:participants (logic/current-race @logic/state))))
+
 (def participants-meta (r/atom {}))
-(def p* (r/atom (gen-data)))
-(def p (ra/reaction (vec (map-indexed (fn [idx {:keys [id] :as a-p}]
-                                        (-> a-p
-                                            (merge (get @participants-meta id))
-                                            (assoc :color (get colors idx))))
-                                      @p*))))
+(def p (ra/reaction (apply merge (map-indexed (fn [idx [id a-p]]
+                                                {id (-> a-p
+                                                        (merge (get @participants-meta id))
+                                                        (assoc :color (get colors idx)))})
+                                              @current-participants))))
 
 (def criteria-meta (r/atom {[:production-year] {:in-display? false
                                                 :in-inspect? false}
@@ -254,18 +209,18 @@
                                                 :in-inspect? false}
                             [:weight]          {:in-display? true
                                                 :in-inspect? false}}))
-(def inspect-criteria (fn [val-path] (swap! criteria-meta update-in [val-path :in-inspect?] not)))
+(def inspect-criteria (fn [val-path on?] (swap! criteria-meta assoc-in [val-path :in-inspect?] on?)))
 (def display-criteria (fn [val-path] (swap! criteria-meta update-in [val-path :in-display?] not)))
 
 
-(def p-field [400 400])
+
 (def p-axes
   (ra/reaction (decide-on-viz2 @p
                                @criteria-meta
                                p-field)))
 
 (defn derive-dps2 [p p-axes]
-  (->> (for [{:keys [id] :as dp} p
+  (->> (for [[id dp] p
              {:keys [val-path ->range ->coords in-inspect?]} p-axes
              :let [domain-val (get-in dp val-path)
                    range (->range domain-val)
@@ -280,19 +235,21 @@
   (ra/reaction (derive-dps2 @p @p-axes)))
 
 
+(def temp (r/atom {}))
 (def p-spec
   (ra/reaction {:range p-field
                 :axes @p-axes
                 :data @p
                 :dps @p-dps
-                :events {:select  (fn [id] (swap! participants-meta update-in [id :in-select?] not))
-                         :inspect (fn [id] (swap! participants-meta update-in [id :in-inspect?] not))}}))
+                :temp @temp
+                :events {:select  (fn [id] (>evt [:toggle-participant id]))
+                         :inspect (fn [id on?] (swap! participants-meta assoc-in [id :in-inspect?] on?))}}))
 
 
 (defn fill-spec [data]
   (swap! spec (fn [spec] (-> (assoc spec :data data)
                              (complete-spec)))))
-(fill-spec (gen-data))
+#_(fill-spec (gen-data))
 
 
 ;; Magnet dps
@@ -301,27 +258,34 @@
 (defn sys-magnet
   "Magnets entities to their :desired-coords"
   [spec]
-  (update spec :dps (fn [dps]
-                      (apply merge
-                             (for [[id {:keys [desired-coords current-coords] :as result}] dps]
-                               {id (if (= desired-coords current-coords)
-                                     result
-                                     (assoc result :current-coords (if (empty? current-coords)
-                                                                     desired-coords
-                                                                     (let [[desired-x desired-y] desired-coords
-                                                                           [dx dy] (displacement desired-coords current-coords)
-                                                                           [current-x current-y] current-coords]
-                                                                       [(if (< (Math.abs dx) 0.2)
-                                                                          desired-x
-                                                                          (+ current-x (/ dx 20)))
-                                                                        (if (< (Math.abs dy) 0.2)
-                                                                          desired-y
-                                                                          (+ current-y (/ dy 20)))]))))})))))
+  (swap! temp (fn [old]
+                (for [[id {:keys [desired-coords current-coords] :as result}] (:dps spec)
+                      ent-temp (get old id)]
+                  {id (update ent-temp :current-coords
+                              (fn [current-coords]
+                                (cond
+                                  (= desired-coords current-coords)
+                                  current-coords
+
+                                  (empty? current-coords)
+                                  center-coords
+
+                                  desired-coords
+                                  (let [[desired-x desired-y] desired-coords
+                                        [dx dy] (displacement desired-coords current-coords)
+                                        [current-x current-y] current-coords]
+                                    [(if (< (Math.abs dx) 0.2)
+                                       desired-x
+                                       (+ current-x (/ dx 20)))
+                                     (if (< (Math.abs dy) 0.2)
+                                       desired-y
+                                       (+ current-y (/ dy 20)))]))
+                                ))}))))
 
 (js/setInterval #(swap! spec sys-magnet) 16)
 
 ;; Magent axis
-(defn magnet [current desired]
+#_(defn magnet [current desired]
   (if (nil? current)
     desired
     (let [d (- desired current)]
@@ -329,7 +293,7 @@
         desired
         (+ current (/ d 20))))))
 
-(defn sys-axis-magnet
+#_(defn sys-axis-magnet
   "Magnets viz of axes to their :desired-vizmin :desired-viz-max"
   [spec]
   (update spec :axes (fn [axes]
@@ -339,14 +303,14 @@
                               (update :current-min-range-viz magnet min-range-viz)
                               (update :current-max-range-viz magnet max-range-viz)))))))
 
-(js/setInterval #(swap! spec sys-axis-magnet) 16)
+#_(js/setInterval #(swap! spec sys-axis-magnet) 16)
 
 
 
 ;; View
 (defn axes [{:keys [axes dps]
              [field-w field-h] :range}]
-  [:g
+  [:g.axes
    (doall
     (for [{:keys [val-path]
            [[x1 y1] [x2 y2]] :coords} axes]
@@ -355,10 +319,8 @@
        [:line {:id (pr-str val-path)
                :x1 x1 :y1 y1
                :x2 x2 :y2 y2
-               :stroke-width "2px"
-               :stroke "orange"
-               :on-mouse-enter #(inspect-criteria val-path)
-               :on-mouse-leave #(inspect-criteria val-path)
+               :on-mouse-enter #(inspect-criteria val-path true)
+               :on-mouse-leave #(inspect-criteria val-path false)
                }]
        (let [char-w 7
              w (* (count (pr-str val-path)) char-w)
@@ -374,7 +336,6 @@
 
 (declare data-points)
 (defn radar-chart [{[x y] :range :as spec}]
-  (reset! current-at (js/Date.now))
   [:svg {:width x
          :height y}
    [axes spec]
@@ -397,12 +358,13 @@
      [:text {:x (/ range 2)
              :y (* 2.5 label-offset)} desc]
      [:g
-      (let [amount-fit (/ (- domain-end domain-start) tick)]
+      (let [amount-fit (/ (- (l -1 domain-end) (l -2 domain-start)) (or tick 5))]
         (for [tick-idx (clojure.core/range (inc amount-fit))
               :let [domain-val (+ (* tick-idx tick) domain-start)
                     range-pos (->range domain-val)]
               :when (and (<= range-pos current-max-range-viz)
-                         (>= range-pos current-min-range-viz))]
+                         (>= range-pos current-min-range-viz))
+              ]
           ^{:key tick-idx}
           [:g.tick
            [:circle.dash {:cx range-pos
@@ -452,15 +414,16 @@
    (if (= 2 (count axes))
      (let [x-val-path (-> axes first :val-path)
            y-val-path (-> axes second :val-path)]
-       (for [{:keys [id]} data
+       (for [[id dp] data
              :let [x (get-in dps [[id x-val-path] :current-coords 0])
                    y (get-in dps [[id y-val-path] :current-coords 1])
                    ]]
          ^{:key id}
          [:g.dp {:transform (gstr/format "translate(%s, %s)" x y)}
           [:circle.dp {:r 5 :fill "gray"}]
-          [info (first (filter #(= id (:id %)) data))]]))
-     (for [{:keys [id in-inspect? in-select? color]} data
+          [info dp]]))
+
+     (for [[id {:keys [in-inspect? in-select? color]}] data
            :let [ent-dps (filter (fn [[[ent-id]]] (= ent-id id)) dps)
                  polygon (->> ent-dps
                               (sort-by (fn [[[_ val-path]]] val-path))
@@ -473,8 +436,8 @@
        [:g.entity-polygon {:class (str (when in-inspect? "in-inspect ")
                                        (when in-select? "in-select "))}
         [:polygon {:on-click #(select id)
-                   :on-mouse-over #(inspect id)
-                   :on-mouse-out #(inspect id)
+                   :on-mouse-over #(inspect id true)
+                   :on-mouse-out #(inspect id false)
                    :points polygon
                    :fill color
                    :stroke color}]
@@ -491,17 +454,18 @@
 
 
 (defn chart [{[x y] :range :as spec}]
-  (conj [:svg {:width x
-               :height y}]
-        [axis (get-in spec [:axes 0])]
-        [axis (get-in spec [:axes 1])]
-        [data-points spec]))
+  [:svg {:width x
+         :height y}
+   [axes spec]
+   ;[axis (l 0 (get-in spec [:axes 0]))]
+   ;[axis (l 1 (get-in spec [:axes 1]))]
+   [data-points spec]])
 
 
 (defn chart-panel []
   [:div
    [chart @spec]
-   [:button {:on-click #(fill-spec (gen-data))} "Different dataset"]])
+   #_[:button {:on-click #(fill-spec (gen-data))} "Different dataset"]])
 
 #_(defn chart []
   (let [[center-x center-y] [315 120]
@@ -544,9 +508,11 @@
 
 (defmulti stage-content :stage)
 
+(declare participants-stage)
 (defmethod stage-content :participants
   [{:keys [racers]}]
-  [:div.stage-content.participants
+  [participants-stage]
+  #_[:div.stage-content.participants
    [:div.collection.with-header
     [:div.collection-header [:h4 "Participants"]]
     (for [[pt-id {:keys [name skill participates?]}] racers]
@@ -556,45 +522,76 @@
        (str name " "  skill)])]
    ])
 
-(defn driver [{:keys [id name avatar skill]}]
-  [:div.driver {:draggable true
+(defn driver [{:keys [id car-name driver-name avatar skill color]}]
+  [:div.participant.card {:id id
+                          :draggable true
+                          :on-drag-start (fn [evt] (.setData (.-dataTransfer evt) "pt-id" id))
+
+                          :style {:border-color color
+                                  :border-style "solid"}}
+
+   [:div.driver-name driver-name]
+   [:div.car-name car-name]]
+
+  #_[:div.driver {:draggable true
                 :on-drag-start (fn [evt] (.setData (.-dataTransfer evt) "pt-id" id))
                 :id id}
    [:div.avatar avatar]
-   [:div.name name]
+   [:div.driver-name driver-name]
+   [:div.car-name car-name]
    [:div.skill skill]])
 
 (defmethod stage-content :bets
   [state]
-  (let [pts (filter (comp :participates? val) (:racers state))
-        {left-drivers false
-         betted-drivers true} (group-by (comp boolean :bet val) pts)]
-    [:div#bets.stage-content "BETS:"
-     [:div.drivers
-      (for [[pt-id dr] left-drivers]
-        ^{:key pt-id}
-        [driver dr])]
+  (let [race (logic/current-race state)
+        pts (l -1 (into {} (filter (comp :in-select? val) @p)))
+        betted-pts (set (map (comp :pt-id val) (l 0 (:bets race))))
+        bets (:bets race)]
+    (l "PTS:" pts)
+    [:div#bets.stage-content
+     [:div#drivers.drivers.card {:on-drop (fn [evt]
+                                            (println "Cancel bet!")
+                                            (.setAttribute (js/document.getElementById "drivers") "hover-over" false)
+                                            (let [pt-id (->> (.getData (.-dataTransfer evt) "pt-id")
+                                                             rest
+                                                             (apply str)
+                                                             keyword)]
+                                              (>evt [:cancel-bet pt-id])))
 
-     [:div.bets
+                         :on-drag-over (fn [evt] (.preventDefault evt))
+                         :on-drag-enter (fn [evt] (.setAttribute (js/document.getElementById "drivers") "hover-over" true))
+                         :on-drag-leave (fn [evt] (.setAttribute (js/document.getElementById "drivers") "hover-over" false))}
+      (for [[id dr] (remove (comp betted-pts key) pts)]
+        ^{:key id}
+        [driver dr])
+      [:div.overlay
+       [:text "No bet"]]]
+
+     [:ul.bets.card
       (for [place (range 1 (inc (count pts)))
-            :let [[id {{:keys [chance]} :bet :as dr}] (first (filter (comp #{place} :place :bet val) betted-drivers))]]
-        (let [node-id (str "p" place)]
-          ^{:key place}
-          [:div.bet {:id node-id
-                     :on-drop (fn [evt]
-                                (println "DROP!")
-                                (.setAttribute (js/document.getElementById node-id) "hover-over" false)
-                                (let [pt-id (.getData (.-dataTransfer evt) "pt-id")]
-                                  (>evt [:place-bet pt-id {:place place :chance 80}])))
-                     :on-drag-over (fn [evt] (.preventDefault evt))
-                     :on-drag-enter (fn [evt] (.setAttribute (js/document.getElementById node-id) "hover-over" true))
-                     :on-drag-leave (fn [evt] (.setAttribute (js/document.getElementById node-id) "hover-over" false))
-                     }
-           [:div.place place]
-           (when dr [driver dr])
-           (when chance [:input.chance {:type :range
-                                        :value chance
-                                        :on-change #(>evt [:place-bet id {:place place :chance (.-value (.-target %))}])}])]))]]))
+            :let [[bet-id {:keys [pt-id chance]}] (l 66666 (first (filter (fn [[_ {bet-place :place}]] (= bet-place place)) (l -66666666 bets))))
+                  dr (get pts pt-id)
+                  _ (l "BT" bets)]
+            ]
+        ^{:key place}
+        [:li.bet {:id place
+                  :on-drop (fn [evt]
+                             (println "DROP!")
+                             (.setAttribute (js/document.getElementById place) "hover-over" false)
+                             (let [pt-id (->> (.getData (.-dataTransfer evt) "pt-id")
+                                              rest
+                                              (apply str)
+                                              keyword)]
+                               (>evt [:place-bet place place pt-id 80])))
+                  :on-drag-over (fn [evt] (.preventDefault evt))
+                  :on-drag-enter (fn [evt] (.setAttribute (js/document.getElementById place) "hover-over" true))
+                  :on-drag-leave (fn [evt] (.setAttribute (js/document.getElementById place) "hover-over" false))
+                  }
+         [:div.place place]
+         (when dr [driver dr])
+         (when chance [:input.chance {:type :range
+                                      :value chance
+                                      :on-change #(>evt [:place-bet place place pt-id (.-value (.-target %))])}])])]]))
 
 (defmethod stage-content :race
   [state]
@@ -605,17 +602,10 @@
   [:div#results.stage-content "RESULTS"
    (str (<sub [:wins-history]))])
 
-#_(defmulti stage :stage)
-#_(defmethod stage :participants
-  [state]
-  [:div.stage.participants
-   ])
-
 (defn stage []
   (let [stage-id (:stage @state)
         {:keys [name next prev]} (get stages stage-id)]
     [:div.stage
-     [stats]
      [stage-content @state]
      (when prev [:button.prev {:on-click #(>evt [:to-stage prev])} prev])
      (when next [:button.next {:on-click #(do (>evt [:to-stage next])
@@ -626,44 +616,66 @@
 ;; TODO inspect
 (defn criteria-list []
   [:div.criteria-list
-   (for [[val-path {:keys [in-display?]}] (sort-by key (l 0 @criteria-meta))]
+   (for [[val-path {:keys [in-display?]}] (sort-by key @criteria-meta)]
      ^{:key val-path}
-     [:div.criteria.chip {:class (when in-display? "in-display")
-                          :on-mouse-enter #(inspect-criteria val-path)
-                          :on-mouse-leave #(inspect-criteria val-path)
+     [:div.criteria {:class (when in-display? "in-display")
+                     :on-mouse-enter #(inspect-criteria val-path true)
+                     :on-mouse-leave #(inspect-criteria val-path false)
 
-                          :on-click #(display-criteria val-path)
-                          }
+                     :on-click #(display-criteria val-path)
+                     }
       (pr-str val-path)]
      )])
 
 (defn participants-list [{{:keys [inspect select]} :events}]
   [:div.participants-list
    (doall
-    (for [{:keys [id driver-name car-name color in-select?]} @p]
+    (for [{:keys [id driver-name car-name color in-select? in-inspect?]} (vals @p)]
       ^{:key id}
-      [:div.participant.card {:class (when in-select? "in-select")
+      [:div.participant.card {:class (str (when in-select? "in-select ")
+                                          (when in-inspect? "in-inspect "))
                               :on-click #(select id)
-                              :on-mouse-enter #(inspect id)
-                              :on-mouse-leave #(inspect id)
+                              :on-mouse-enter #(inspect id true)
+                              :on-mouse-leave #(inspect id false)
                               :style {:border-color color
                                       :border-style "solid"}}
+       [:div.background {:style {:background-color color}}]
        [:div.driver-name driver-name]
        [:div.car-name car-name]]))])
 
+
+;;
+(def game (ra/reaction
+           (let [participant-ids (keys (filter (comp :in-select? val) @participants-meta))]
+             )))
+
+(defn participants-stage []
+  [:div.participants-stage
+   [radar-chart @p-spec]
+   [criteria-list]
+   [participants-list @p-spec]
+   [:button.btn {:on-click #(when (<sub [:fine-to-bet?]) (>evt [:to-stage :bets]))
+                 :class (when-not (<sub [:fine-to-bet?]) "disabled")
+                 :title (when-not (<sub [:fine-to-bet?]) "Race needs at least 2 participants for it to be... a race.")}
+    "PLACE BETS"]])
+
+(defn bets-stage []
+  [:div "bets stage"])
+
+(defn race-stage []
+  [:div "race stage"])
+
 (defn root []
+  #_(l "SPEC:" @p-spec)
   [:div#root
    [:style (garden.core/css charting-around.css/styles)]
    [:link {:rel "stylesheet"
            :href "https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"}]
 
-   [radar-chart @p-spec]
-   [criteria-list]
-   [participants-list @p-spec]
-   #_[stage]
+   [stage-content @state]
    ])
 
 (r/render [root]
-          (.-body js/document))
+          (document.getElementById "app"))
 
 

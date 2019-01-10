@@ -2,6 +2,8 @@
   (:require #?(:cljs [goog.string :refer [format]])
             [garden.color :as color :refer [rgb hsl]]))
 
+(def active-color "orange")
+
 (defn grid [& strs]
   (let [rows (butlast strs)
         columns (last strs)
@@ -43,47 +45,43 @@
      [:.dash {:r 3 :fill "orange"}]
      [:.val {:font-size "10px"}]]]
 
-   [:.driver
-    {:display "flex"
-     :align-items :center
-     :width "200px"
-     :height "50px"
-     :border "1px solid gray"
-     :cursor "grab"}]
-   [:#bets {:width "fit-content"}
-    [:.drivers {:float :left}]
-    [:.bets {:float :right}]
-    [:.bet {
-            :background-color "lightgray"
-            :opacity "0.7"
-            :border "2px solid gray"
-            :display "grid"
-            :grid-template (grid "place  driver 50px"
-                                 "chance chance 30px"
-                                 "50px   200px")}
-     [:.place {:grid-area "place"
-               :font-size "24px"
-               :text-decoration "underline"
-               :pointer-events "none"}]
-     [:.driver
-      {:grid-area "driver"
-       :display "flex"
-       :align-items :center
-       :width "200px"
-       :height "50px"
-       :border "1px solid gray"
-       :cursor "grab"}]
-     [:.chance {:grid-area "chance"}]
-
-     [:&#p1 {:border-color "gold"
-             :background-color "gold"}]
-     [:&#p2 {:border-color "silver"
-             :background-color "silver"}]
-     [:&#p3 {:border-color "bronze"
-             :background-color "bronze"}]
+   [:#bets {:display "flex"
+            :justify-content "space-around"}]
+   [:.drivers {:position "relative"}
+    {:min-width "45%"}
+    [:.overlay {:position "absolute"
+                :left "0px" :top "0px" :right "0px" :bottom "0px"
+                :background-color "gray"
+                :opacity 0
+                :display "flex" :flex-direction "column"
+                :justify-content "space-around"
+                :align-items "center"
+                :pointer-events "none"}
      ]
-    [".bet[hover-over=true]" {:border "2px dashed cadetblue !important"}]
-    ]
+    [:text {:font-size "30px"
+            :color "white"
+            }]]
+   [".drivers[hover-over=true]"
+    [:.overlay {:opacity 0.7}]
+    [:.participant {:pointer-events "none"}]]
+   [:.bets {:display "flex"
+            :min-width "45%"
+            :flex-direction "column"
+            :width "fit-content"}]
+   [:.bet {:min-height "140px"}]
+   [:.place {:grid-area "place"
+             :font-size "24px"
+             :text-decoration "underline"
+             :pointer-events "none"}]
+
+   [:&#p1 {:border-color "gold"
+           :background-color "gold"}]
+   [:&#p2 {:border-color "silver"
+           :background-color "silver"}]
+   [:&#p3 {:border-color "bronze"
+           :background-color "bronze"}]
+   [".bet[hover-over=true]" {:border "2px dashed cadetblue !important"}]
+    
 
    [:.entity-polygon
     [:.criteria {:visibility "hidden"}
@@ -102,21 +100,44 @@
 
    [:.criteria-list
     [:.criteria {:background-color "lightgray"
-                 :cursor "pointer"}]
-    [:.criteria.in-display {:background-color "#2bbbad"}]]
+                 :cursor "pointer"
+                 :border-width "2px"
+                 :border-style "solid"
+                 :border-color "darkgray"
+                 :border-radius "20px"
+                 :display "inline-block"
+                 :padding "6px"
+                 :margin-right "4px"
+                 :transition "0.4s border-color"
+                 }]
+    [:.criteria.in-display {:border-color active-color
+                            ;:background-color #_active-color "#2bbbad"
+                            }]]
 
    [:.participants-list
     {:display "flex"}
-    [:.participant {:margin-right "5px"
+    [:.participant {:position "relative"
+                    :margin-right "5px"
                     :padding "3px"
                     :border-width "1px"
                     :cursor "pointer"
                     :transition "border-width 0.2s"}]
-    [:.participant.in-select {:border-width "2px"}]]
+    [:.participant.in-select {:border-width "2px"}]
+    [:.participant
+     [:.background {:position "absolute"
+                    :top "0px" :right "0px" :bottom "0px" :left "0px"
+                    :opacity 0.1}]]
+    [:.participant.in-inspect
+     [:.background {:opacity 0.3}]]]
 
-   [:.chart.radar
+   [:.axes
+    [:line {:stroke-width "2px"
+            :stroke active-color #_"cadetblue"}]]
+   [:.btn.disabled {:pointer-events "all !important"}]
+
+   #_[:.chart.radar
     [:line.axis {:stroke-width "1px" :stroke "lightgray"}]
-    [:line.domain {:stroke-width "2px" :stroke "orange"}]
+    [:line.domain {:stroke-width "2px" :stroke "cadetblue" #_"orange"}]
     [:.tick.min {:r 2 :fill "gray"}]
     [:.tick.max {:r 2 :fill "red"}]
     [:text {:font-size "10px"}]

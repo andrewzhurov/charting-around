@@ -18,34 +18,37 @@
   db)
 
 
-(reset! state (merge init-state
-                     {:racers {:rokko {:name "Rokko" :skill 0.6}
-                               :kokko {:name "Kokko" :skill 1}
-                               :mokko {:name "Mokko" :skill 0.8}}}))
+(reset! state (assoc-in init-state
+                        [:races 1 :participants]
+                        {:rokko {:name "Rokko" :skill 0.6}
+                         :kokko {:name "Kokko" :skill 1}
+                         :mokko {:name "Mokko" :skill 0.8}}))
 
 (deftest logic-test
   (testing "BLAH"
+    (assert false (<sub [:fine-to-bet?]))
     (>evt [:toggle-participant :rokko])
+    (assert false (<sub [:fine-to-bet?]))
     (>evt [:toggle-participant :mokko])
+    (assert true (<sub [:fine-to-bet?]))
     (>evt [:toggle-participant :kokko])
-    (>evt [:place-bet :rokko {:place 3 :chance 80}])
-    (>evt [:place-bet :mokko {:place 1 :chance 90}])
-    (>evt [:race])
-    (assert {:rokko {:bet {:guessed? true}}
-             :mokko {:bet {:guessed? false}}} (l 11 (<sub [:results])))
-    (assert [-10]
-            (<sub [:wins-history])))
-
-  (testing "Bet swap"
-    (>evt [:place-bet :rokko {:place 3}])
-    (>evt [:place-bet :mokko {:place 1}])
-    (assert {:rokko {:bet {:place 3}}
-             :mokko {:bet {:place 1}}} (l 22 (<sub [:results])))
-    (>evt [:place-bet :rokko {:place 1}])
-    (assert {:rokko {:bet {:place 1}}
-             :mokko {:bet {:place 3}}} (l 33 (<sub [:results])))
+    (>evt [:place-bet :bet1 3 :rokko 80])
+    (>evt [:place-bet :bet2 1 :mokko 90])
+    ;(>evt [:race])
+    nil?
+    (assert {:bet1 80
+             :bet2 -90} (<sub [:bet-results 1]))
+    (>evt [:place-bet :bet3 1 :kokko 50])
+    (assert ^:matcho/strict
+            {:bet1 80
+             :bet3 50} (<sub [:bet-results 1]))
+    (>evt [:cancel-bet :kokko])
+    (assert ^:matcho/strict
+            {:bet1 80
+             } (<sub [:bet-results 1]))
 
     ))
+
 
 
 
