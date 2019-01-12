@@ -105,6 +105,12 @@
 
 ;;
 (defmulti drive (fn [_ [evt-id]] evt-id))
+(defmethod drive :regen-participants
+  [state _]
+  (assoc-in state [:races (:current-race-id state)] {:participants (gen-participants)
+                                                     :bets {}
+                                                     :race-result {}}))
+
 (defmethod drive :toggle-participant
   [state [_ pt-id]]
   (update-in state [:races (:current-race-id state) :participants pt-id :in-select?] not))
@@ -143,7 +149,8 @@
 (declare derive-node)
 (def subscriptions
   {:race-results (fn [state [_ race-id]]
-                   (let [race (get-in state [:races race-id])]
+                   (let [race-id (or race-id (:current-race-id state))
+                         race (get-in state [:races race-id])]
                      (->> (:participants race)
                           (sort-by (comp :skill val))
                           reverse
@@ -152,7 +159,8 @@
                                          {(inc idx) pt-id}))
                           (apply merge))))
    :bet-results (fn [state [_ race-id]]
-                  (let [bets (get-in state [:races race-id :bets])
+                  (let [race-id (or race-id (:current-race-id state))
+                        bets (get-in state [:races race-id :bets])
                         rr (derive-node state [:race-results race-id])]
                     (reduce
                      (fn [acc [bet-id {:keys [pt-id place chance]}]]

@@ -45,22 +45,37 @@
      [:.dash {:r 3 :fill "orange"}]
      [:.val {:font-size "10px"}]]]
 
-   [:#bets {:display "flex"
-            :justify-content "space-around"}]
-   [:.drivers {:position "relative"}
-    {:min-width "45%"}
-    [:.overlay {:position "absolute"
-                :left "0px" :top "0px" :right "0px" :bottom "0px"
-                :background-color "gray"
-                :opacity 0
-                :display "flex" :flex-direction "column"
-                :justify-content "space-around"
-                :align-items "center"
-                :pointer-events "none"}
-     ]
-    [:text {:font-size "30px"
-            :color "white"
-            }]]
+   [:#bets {:width "100%"
+            :height "100%"
+            :display "flex"
+            :justify-content "space-around"
+            :padding-top "10px"}
+    [:.drop-overlay {:position "absolute"
+                     :left "0px" :top "0px" :right "0px" :bottom "0px"
+                     :background-color "gray"
+                     :opacity 0
+                     :display "flex" :flex-direction "column"
+                     :justify-content "space-around"
+                     :align-items "center"
+                     :pointer-events "none"
+                     :border "3px dashed lightgray"}
+     [:text {:font-size "30px"
+             :color "white"
+             }]]
+    [:&.dragging
+     [:.drop-overlay {:opacity 0.8}]
+     [:.drop-overlay:hover {:border-style "solid"}]]]
+
+   [:.drivers {:position "relative"
+               :min-height "40%"
+               :min-width "45%"
+               :height "fit-content"
+               :border "1px solid gray"
+               :border-radius "5px"}
+    ]
+   [:.to-race {:position "absolute"
+               :bottom "10px"
+               :left "50%"}]
    [".drivers[hover-over=true]"
     [:.overlay {:opacity 0.7}]
     [:.participant {:pointer-events "none"}]]
@@ -68,7 +83,9 @@
             :min-width "45%"
             :flex-direction "column"
             :width "fit-content"}]
-   [:.bet {:min-height "140px"}]
+   [:.bet {:position "relative"
+           :min-height "140px"
+           :margin-bottom "5px"}]
    [:.place {:grid-area "place"
              :font-size "24px"
              :text-decoration "underline"
@@ -135,6 +152,19 @@
             :stroke active-color #_"cadetblue"}]]
    [:.btn.disabled {:pointer-events "all !important"}]
 
+   [:.dp
+    [:.info {:visibility "hidden"}]
+    [:.dot {:fill-opacity "0.5"
+            :r 4
+            :stroke-width 0
+            :cursor "pointer"}]]
+   [:.dp.in-inspect
+    [:.info {:visibility "visible"}]
+    [:.dot {:fill-opacity "0.6"
+            :stroke-width "2px"}]]
+   [:.dp.in-select
+    [:.dot {:fill-opacity "1"
+            :r 6}]]
    #_[:.chart.radar
     [:line.axis {:stroke-width "1px" :stroke "lightgray"}]
     [:line.domain {:stroke-width "2px" :stroke "cadetblue" #_"orange"}]
