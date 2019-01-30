@@ -14,23 +14,6 @@
     (last colls)
     (apply merge-with deep-merge colls)))
 
-(def stages {:participants
-             {:name "Participants"
-              :prev nil
-              :next :bets}
-             :bets
-             {:name "Bets"
-              :prev :participants
-              :next :race}
-             :race
-             {:name "Race"
-              :prev nil
-              :next :results}
-             :results
-             {:name "Results"
-              :prev nil
-              :next :participants}})
-
 (defn gen-uuid [] #?(:cljs (keyword (str (random-uuid)))
                      :clj  (keyword (str (java.util.UUID/randomUUID)))))
 
@@ -39,7 +22,7 @@
   [left-bound right-bound]
   (+ left-bound (rand-int (inc (- right-bound left-bound)))))
 
-(defn gen-participants []
+(defn gen-racers []
   {:vp {:id :vp
         :driver-name "Dallas"
         :car-name "Porshe 911"
@@ -49,6 +32,7 @@
         :horsepower (rand-in 150 280)
         :weight (rand-in 1200 1400)
         :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
+
    :jmm
    {:id :jmm
     :driver-name "Paul"
@@ -94,19 +78,8 @@
     :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}}
   )
 
-(def init-state {:stage :welcome
-                 :current-race-id 0
-                 :racers (gen-participants)
-                 :races {}
-                 ;:races {1 {:participants [{<<participant>>}]
-                 ;           :bets {}
-                 ;           :race-result {}}}
-                 })
-
-(defn current-race [state]
-  (get-in state [:races (:current-race-id state)]))
-(defn current-participants [state]
-  (filter (comp :in-select? val) (:participants (current-race state))))
+(def init-state {:racers (gen-racers)
+                 :bets {}})
 
 (def state #?(:cljs (reagent.core/atom init-state)
               :clj (atom init-state)))
@@ -115,7 +88,7 @@
 (defmulti drive (fn [_ [evt-id :as evt]] (l ">" evt) evt-id))
 (defmethod drive :regen-racers
   [state _]
-  (update state :racers deep-merge (gen-participants)))
+  (update state :racers deep-merge (gen-racers)))
 
 (defmethod drive :make-checkpoint
   [state _]
@@ -124,7 +97,8 @@
 (defmethod drive :to-checkpoint
   [state _]
   (if-let [checkpoint-state (:checkpoint state)]
-    checkpoint-state
+    (assoc checkpoint-state
+           :checkpoint checkpoint-state)
     (do
       #?(:cljs (js/console.log "No checkpoint state found"))
       state)))
@@ -195,7 +169,7 @@
    :bets (fn [state] (:bets state))})
 
 (defn derive-node [state [sub-id :as sub]]
-  (l "<" sub)
+  #_(l "<" sub)
   (if-let [sub-fn (get subscriptions sub-id)]
     (sub-fn state sub)
     (println "No SUB" sub)))

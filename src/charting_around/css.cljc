@@ -189,9 +189,6 @@
                   :transition "0.4s"}
     [:&.vanish {:opacity "0"}]]
 
-   [:.checkpoint {:position "absolute"
-                  :top "10px"}]
-
    [:.layout {:display "flex"}]
    [:#bets2 {:width "100%"
              :display "flex"

@@ -3,7 +3,7 @@
             [reagent.ratom :as ra]
             [garden.core]
             [goog.string :as gstr]
-            [charting-around.logic :as logic :refer [state stages >evt <sub]]
+            [charting-around.logic :as logic :refer [state >evt <sub]]
             [charting-around.css]
             ))
 

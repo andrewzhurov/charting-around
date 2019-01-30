@@ -3,10 +3,9 @@
             [reagent.ratom :as ra]
             [garden.core]
             [goog.string :as gstr]
-            [charting-around.logic :as logic :refer [state stages >evt <sub]]
+            [charting-around.logic :as logic :refer [state >evt <sub]]
             [charting-around.css]
             [charting-around.chart :as chart]
-            [charting-around.stage :as stage]
             ))
 
 (defn driver [{:keys [id car-name driver-name avatar skill color]}]
@@ -23,12 +22,9 @@
 (defn bets-stage [state]
   (let [drag? (r/atom false)]
     (fn [state]
-      (js/console.log "STATE:" state)
       (let [rs (<sub [:racers])
             pts (<sub [:participants])
             bets (<sub [:bets])]
-        (js/console.log "PTS:" pts)
-        (js/console.log "BETS:" bets)
         [:div#bets2
          (doall
           (for [place (range 1 (inc (count rs)))
@@ -41,7 +37,9 @@
                [:div.card-content.white-text
                 [:span.card-title place "st place question"]
                 [:p
-                 (str "Who do you think finished the " place "st? Pellentesque tristique imperdiet tortor.  Pellentesque tristique imperdiet tortor.  Integer placerat tristique nisl.  ")
+                 (str "Who do you think finished the "
+                      place
+                      "st? Pellentesque tristique imperdiet tortor.  Pellentesque tristique imperdiet tortor.  Integer placerat tristique nisl.  ")
                  ]]
                [:div.card-action
                 [:div.answers
@@ -58,9 +56,7 @@
                                     :type "range"
                                     :value (or chance 80)
                                     :on-change #(>evt [:bet {:place place
-                                                             :chance (int (.-value (.-target %)))}])}]]]]]))
-
-         #_[:div (pr-str pt)]]
+                                                             :chance (int (.-value (.-target %)))}])}]]]]]))]
         #_[:div#bets.stage-content {:class (when @drag? "dragging")
                                   :on-drag-over (fn [evt] (.preventDefault evt))
                                   :on-drop done-drag!}
@@ -110,8 +106,3 @@
                        3 "3rd"
                        (str place "th"))]]])]
          [:button.btn.to-race {:on-click #(do (>evt [:to-stage :race]))} "SEE RACE"]]))))
-
-(defmethod stage/stage :bets
-  [state]
-  [bets-stage state])
-
