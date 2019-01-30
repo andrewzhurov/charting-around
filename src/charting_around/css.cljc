@@ -171,6 +171,43 @@
     [:.tick.min {:r 2 :fill "gray"}]
     [:.tick.max {:r 2 :fill "red"}]
     [:text {:font-size "10px"}]
-    ]])
+      ]
+
+   [:#welcome {:display "flex"
+               :flex-direction "column"}]
+   [:#results
+    [:.axis {:stroke "gray"}]
+    [:.balance {:r 5}]]
+
+   [:.collapsable {:overflow "hidden"
+                   :max-height "300px"
+                   :transition "0.5s"
+                   }
+    [:&.collapse {:max-height "0px"}]]
+
+   [:.vanishable {:opacity "1"
+                  :transition "0.4s"}
+    [:&.vanish {:opacity "0"}]]
+
+   [:.checkpoint {:position "absolute"
+                  :top "10px"}]
+
+   [:.layout {:display "flex"}]
+   [:#bets2 {:width "100%"
+             :display "flex"
+             :flex-direction "column"
+             :align-items "center"}
+    [:.answers {:display "flex"}]
+    [:.answer {:cursor "pointer"
+               :opacity "1"
+               :transition "0.3s"
+               :border-bottom "2px solid transparent"}
+     [:&.hidden {:opacity "0"
+                 :pointer-events "none"}]
+     [:&.betted {:border-bottom "2px solid orange"}]]]
+
+   
+
+   ])
 
 

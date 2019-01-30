@@ -17,15 +17,81 @@
     #_(failed-test-line-number))
   db)
 
+(defn expect [sub to-match]
+  (assert to-match (<sub sub)))
 
-(reset! state (assoc-in init-state
-                        [:races 1 :participants]
-                        {:rokko {:name "Rokko" :skill 0.6}
-                         :kokko {:name "Kokko" :skill 1}
-                         :mokko {:name "Mokko" :skill 0.8}}))
 
+
+
+;; WIP on tests
+;; Maybe I should not write them for sketches
 (deftest logic-test
-  (testing "BLAH"
+  (testing "Base test"
+    (>evt [:to-presentation :granular])
+    (>evt [:gen-node {:pt-id1 {:skill 0}
+                      :pt-id2 {:skill 1}}])
+    (>evt [:gen-node {:pt-id1 {:skill 0}
+                      :pt-id2 {:skill 1}}])
+    (expect [:nodes]
+            {1 {:began? true
+                :complete 0}
+             2 {:began? false}})
+    (expect [:subnodes 1]
+            {1 {:type :chart
+                :active? true
+                :complete? false}
+             2 {:type :quiz
+                :text string?
+                :active? false
+                :complete? false}
+             3 {:type :quiz}})
+    (>evt [:submit])
+    (expect [:subnodes 1]
+            {1 {:type :chart
+                :active? false
+                :complete? true}
+             2 {:active? true}})
+
+    "Submit question answer
+     'Who finishes 1st?'
+     Show hint on wrong answer
+     On wrong answer stay and explain fail reason"
+    (expect [:variants [1 2]]
+            {1 {:question-text string?
+                :explanation-text string?
+                :to-select? true
+                :selected? false}
+             2 map?})
+    (>evt [:submit :pt-id1])
+    (expect [:variants [1 2]]
+            {:pt-id2 {:submitted? true}})
+    (expect [:subnodes 1]
+            {2 {:active? true
+                :complete? false}})
+
+    (>evt [:submit :pt-id1])
+    (expect [:variants [1 2]]
+            {:pt-id1 {:submitted? true}
+             :pt-id2 {:submitted? true}})
+    (expect [:subnodes 1]
+            {2 {:active? false
+                :complete? true}
+             3 {:active? true}})
+
+    (>evt [:to-node ])
+
+
+    #_(assert [1 1] (<sub [:]))))
+
+#_(deftest logic-test
+  (testing "Drag and drop way of display testing"
+    (>evt [:to-presentation :drag-and-drop])
+    (reset! state (assoc-in init-state
+                            [:races 1 :participants]
+                            {:rokko {:name "Rokko" :skill 0.6}
+                             :kokko {:name "Kokko" :skill 1}
+                             :mokko {:name "Mokko" :skill 0.8}}))
+
     (assert false (<sub [:fine-to-bet?]))
     (>evt [:toggle-participant :rokko])
     (assert false (<sub [:fine-to-bet?]))

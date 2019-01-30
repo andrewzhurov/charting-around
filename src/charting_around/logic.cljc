@@ -5,7 +5,10 @@
             [clojure.test.check.generators]
             #?(:cljs [reagent.core])))
 
-(defn l [desc expr] (println desc expr) expr)
+(defn l [desc expr]
+  #?(:clj (do (println desc expr) expr)
+     :cljs (do (js/console.log desc expr) expr)))
+
 (defn deep-merge [& colls]
   (if (not (every? map? colls))
     (last colls)
@@ -37,8 +40,7 @@
   (+ left-bound (rand-int (inc (- right-bound left-bound)))))
 
 (defn gen-participants []
-  (array-map
-   :vp {:id :vp
+  {:vp {:id :vp
         :driver-name "Dallas"
         :car-name "Porshe 911"
         :production-year (rand-in 2014 2018)
@@ -47,54 +49,60 @@
         :horsepower (rand-in 150 280)
         :weight (rand-in 1200 1400)
         :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
+   :jmm
+   {:id :jmm
+    :driver-name "Paul"
+    :car-name "Jaguar MM"
+    :production-year (rand-in 2013 2017)
+    :top-speed (rand-in 180 240)
+    :transmission (rand-in 4 8)
+    :horsepower (rand-in 300 400)
+    :weight (rand-in 1300 1600)
+    :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
 
-   :jmm {:id :jmm
-         :driver-name "Paul"
-         :car-name "Jaguar MM"
-         :production-year (rand-in 2013 2017)
-         :top-speed (rand-in 180 240)
-         :transmission (rand-in 4 8)
-         :horsepower (rand-in 300 400)
-         :weight (rand-in 1300 1600)
-         :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
+   :su
+   {:id :su
+    :car-name "Subaru impreza"
+    :driver-name "Man1"
+    :production-year (rand-in 2016 2018)
+    :top-speed (rand-in 220 260)
+    :transmission (rand-in 4 8)
+    :horsepower (rand-in 250 400)
+    :weight (rand-in 900 1300)
+    :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
 
-   :su {:id :su
-        :car-name "Subaru impreza"
-        :driver-name "No face 1"
-        :production-year (rand-in 2016 2018)
-        :top-speed (rand-in 220 260)
-        :transmission (rand-in 4 8)
-        :horsepower (rand-in 250 400)
-        :weight (rand-in 900 1300)
-        :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
+   :su2
+   {:id :su2
+    :car-name "Subaru impreza"
+    :driver-name "Man2"
+    :production-year (rand-in 2016 2018)
+    :top-speed (rand-in 220 260)
+    :transmission (rand-in 4 8)
+    :horsepower (rand-in 250 400)
+    :weight (rand-in 900 1300)
+    :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
 
-   :su2 {:id :su2
-         :car-name "Subaru impreza"
-         :driver-name "No face 2"
-         :production-year (rand-in 2016 2018)
-         :top-speed (rand-in 220 260)
-         :transmission (rand-in 4 8)
-         :horsepower (rand-in 250 400)
-         :weight (rand-in 900 1300)
-         :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}
-
-   :su3 {:id :su3
-         :car-name "Subaru impreza"
-         :driver-name "No face 3"
-         :production-year (rand-in 2016 2018)
-         :top-speed (rand-in 220 260)
-         :transmission (rand-in 4 8)
-         :horsepower (rand-in 250 400)
-         :weight (rand-in 900 1300)
-         :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])})
+   :su3
+   {:id :su3
+    :car-name "Subaru impreza"
+    :driver-name "Man3"
+    :production-year (rand-in 2016 2018)
+    :top-speed (rand-in 220 260)
+    :transmission (rand-in 4 8)
+    :horsepower (rand-in 250 400)
+    :weight (rand-in 900 1300)
+    :skill (rand-nth [0.5 0.6 0.7 0.8 0.9])}}
   )
 
-(def init-state {:stage :participants
-                 :current-race-id 1
-                 :races {1 {:participants (gen-participants)
-                            :bets {}
-                            :race-result {}}}
+(def init-state {:stage :welcome
+                 :current-race-id 0
+                 :racers (gen-participants)
+                 :races {}
+                 ;:races {1 {:participants [{<<participant>>}]
+                 ;           :bets {}
+                 ;           :race-result {}}}
                  })
+
 (defn current-race [state]
   (get-in state [:races (:current-race-id state)]))
 (defn current-participants [state]
@@ -104,38 +112,35 @@
               :clj (atom init-state)))
 
 ;;
-(defmulti drive (fn [_ [evt-id]] evt-id))
-(defmethod drive :regen-participants
+(defmulti drive (fn [_ [evt-id :as evt]] (l ">" evt) evt-id))
+(defmethod drive :regen-racers
   [state _]
-  (assoc-in state [:races (:current-race-id state)] {:participants (gen-participants)
-                                                     :bets {}
-                                                     :race-result {}}))
+  (update state :racers deep-merge (gen-participants)))
 
-(defmethod drive :toggle-participant
-  [state [_ pt-id]]
-  (update-in state [:races (:current-race-id state) :participants pt-id :in-select?] not))
+(defmethod drive :make-checkpoint
+  [state _]
+  (assoc state :checkpoint state))
 
-(defmethod drive :to-stage [state [_ stage-id]] (assoc state :stage stage-id))
+(defmethod drive :to-checkpoint
+  [state _]
+  (if-let [checkpoint-state (:checkpoint state)]
+    checkpoint-state
+    (do
+      #?(:cljs (js/console.log "No checkpoint state found"))
+      state)))
 
-;; Bets logic a bit bloody
-(defmethod drive :cancel-bet [state [_ pt-id]]
-  (update-in state [:races (:current-race-id state) :bets]
-             (fn [bets]
-               (into {} (remove (fn [[bet-id {bet-pt-id :pt-id}]] (= bet-pt-id pt-id)) bets)))))
+(defmethod drive :toggle-bet
+  [state [_ {:keys [place pt-id] :as bet}]]
+  (update-in state [:bets place] (fn [old]
+                                   (if (= (:pt-id old) pt-id)
+                                     nil
+                                     (merge {:chance 80}
+                                            old
+                                            bet)))))
+(defmethod drive :bet
+  [state [_ {:keys [place pt-id chance] :as bet}]]
+  (update-in state [:bets place] merge bet))
 
-(defmethod drive :place-bet [state [_ bet-id place pt-id chance]]
-  (update-in state [:races (:current-race-id state) :bets]
-             (fn [bets]
-               (let [without-the-pt (->> bets
-                                         (remove (fn [[bet-id {bet-pt-id :pt-id
-                                                               bet-place :place}]] (or (= bet-pt-id pt-id)
-                                                                                       (= bet-place place))))
-                                         (into {})
-                                         )
-                     new-bet-id (or bet-id (gen-uuid))]
-                 (assoc without-the-pt bet-id {:pt-id pt-id
-                                               :place place
-                                               :chance chance})))))
 
 (defmethod drive :default [state evt]
   (println "No EVT" evt)
@@ -148,30 +153,49 @@
 ;;
 (declare derive-node)
 (def subscriptions
-  {:race-results (fn [state [_ race-id]]
-                   (let [race-id (or race-id (:current-race-id state))
-                         race (get-in state [:races race-id])]
-                     (->> (:participants race)
-                          (sort-by (comp :skill val))
+  {:race-results (fn [state]
+                   (let [pts (derive-node state [:participants])]
+                     (->> pts
+                          vals
+                          (sort-by :skill)
                           reverse
-                          keys
-                          (map-indexed (fn [idx pt-id]
-                                         {(inc idx) pt-id}))
+                          (map-indexed (fn [idx {:keys [id]}]
+                                         {(inc idx) id}))
                           (apply merge))))
-   :bet-results (fn [state [_ race-id]]
-                  (let [race-id (or race-id (:current-race-id state))
-                        bets (get-in state [:races race-id :bets])
-                        rr (derive-node state [:race-results race-id])]
-                    (reduce
-                     (fn [acc [bet-id {:keys [pt-id place chance]}]]
-                       (assoc acc bet-id (if (= (get rr place) pt-id)
-                                           chance (- chance))))
-                     {}
-                     bets)))
-   :fine-to-bet? (fn [state _]
-                   (>= (count (current-participants state)) 2))})
+
+   :bets-results (fn [state]
+                   (let [bets (derive-node state [:bets])
+                         rr (derive-node state [:race-results])]
+                     (reduce
+                      (fn [acc [bet-id {:keys [pt-id place chance]}]]
+                        (assoc acc bet-id (if (= (get rr place) pt-id)
+                                            chance (- chance))))
+                      {}
+                      bets)))
+
+
+   :balance-history (fn [state _]
+                      [{:idx 0 :balance 0}
+                       {:idx 1 :balance 30}
+                       {:idx 2 :balance 50}
+                       {:idx 4 :balance -40}
+                       {:idx 5 :balance 40}
+                       {:idx 6 :balance 140}]
+                      (reduce (fn [acc [idx delta]]
+                                (let [{:keys [idx balance]} (last acc)]
+                                  (conj acc {:idx (inc idx)
+                                             :balance (+ balance delta)})))
+                              [{:idx 0
+                                :balance 0}]
+                              (derive-node state [:bets-results])))
+
+   :racers (fn [state _] (:racers state))
+   :participants (fn [state _]
+                   (into {} (filter (comp :in-select? val) (:racers state))))
+   :bets (fn [state] (:bets state))})
 
 (defn derive-node [state [sub-id :as sub]]
+  (l "<" sub)
   (if-let [sub-fn (get subscriptions sub-id)]
     (sub-fn state sub)
     (println "No SUB" sub)))
