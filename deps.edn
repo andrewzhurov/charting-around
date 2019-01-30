@@ -5,5 +5,7 @@
         org.clojure/test.check {:mvn/version "0.9.0"}}
  :paths ["src"]
  :aliases {:test
-           {:extra-paths ["test"]}}
+           {:extra-paths ["test"]}
+           :dev-css
+           {:extra-deps {clojure-watch {:mvn/version "LATEST"}}}}
  }

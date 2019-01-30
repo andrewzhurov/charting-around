@@ -1,0 +1,17 @@
+div#app::after {
+  content: "You also will need your styles! To compile them `make styles`";
+  background-color: lightgray;
+  width: max-content;
+  border: 2px solid orange;
+  font-size: 22px;
+  padding: 10px;
+}
+
+.setup-card {
+    background-color: lightgray;
+    width: max-content;
+    border: 2px solid orange;
+    font-size: 22px;
+    padding: 10px;
+    margin-bottom: 20px;
+}
