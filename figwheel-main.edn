@@ -1,0 +1,5 @@
+{:ring-server-options {:port 9550}
+ :client-print-to [:repl :console]
+ :watch-dirs ("src")
+ :css-dirs ["resources/public"]
+ :mode :repl}

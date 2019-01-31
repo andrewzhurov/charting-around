@@ -6,9 +6,22 @@
 
 
 (defkeyframes move1
-  [:from {:margin-left "0px"}]
-  [:to {:margin-left"20px"}])
+  ["0%" {:margin-left "0px"}]
+  ["50%" {:margin-left"20px"}]
+  ["100%" {:margin-left"0px"}])
 
+(defkeyframes collapse
+  [:to {:margin-bottom "0px"
+        :padding-bottom "0px"}])
+
+(defkeyframes merge-to-left
+  [:to {:margin-left "10px"}])
+(defkeyframes merge-to-right
+  [:to {:margin-left "10px"}])
+
+(defkeyframes to-stone
+  [:to {:background-color "gray"
+        :opacity 1}])
 
 (defn grid [& strs]
   (let [rows (butlast strs)
@@ -25,6 +38,10 @@
 
 (def styles
   [move1
+   collapse
+   merge-to-left
+   merge-to-right
+   to-stone
    ;; RM ::after setup
    ["div#app::after" {:visibility "hidden"}] ;; Hide setup hint
    [:#root {:position "absolute"
@@ -58,7 +75,8 @@
             :height "100%"
             :display "flex"
             :justify-content "space-around"
-            :padding-top "10px"}
+            :padding-top "10px"
+            :flex-basis 0}
     [:.drop-overlay {:position "absolute"
                      :left "0px" :top "0px" :right "0px" :bottom "0px"
                      :background-color "gray"
@@ -212,13 +230,55 @@
                  :pointer-events "none"}]
      [:&.betted {:border-bottom "2px solid orange"}]]]
 
-   [:.stack {:background-color "gray"
-             :height "30px"
-             :width "20px"
-             :margin-left "0px"
-             :transition "2s margin-left"
-             }
-    [:&.move1 {:margin-left "20px"}]]
-   ])
 
+   [:.results {:position "relative"
+               :width "100%"}]
+   [:.results-presentation-picker {:position "absolute"
+                                   :top "10px"
+                                   :right "10px"}]
+   [:.participants-stage {:flex-basis 0}]
+
+
+   [:.stacks {:margin-top "7px"
+              :position "relative"}
+    [:.pos {:position "absolute"
+            :top "0px"
+            :left "0px"
+            :animation [[merge-to-right "0.4s"]]
+            :animation-delay "1s"
+            :animation-fill-mode :forwards
+            :z-index 5}
+     [:.stack {:background-color "green"}]
+     [:.val {:margin-left "-25px"}]
+     ]
+
+    [:.neg {:position "absolute"
+            :top "0px"
+            :margin-left "20px"
+            :animation [[merge-to-left "0.4s"]]
+            :animation-delay "1s"
+            :animation-fill-mode :forwards
+            :z-index 5}
+     [:.stack {:background-color "red"}]
+     [:.val {:margin-left "25px"}]
+     ]]
+
+   [:.stack {:width "20px"
+             :animation [[collapse "0.4s"]]
+             :animation-delay "0.5s"
+             :animation-timing-function :ease-in-out
+             :animation-fill-mode :forwards
+
+             ;:transition-delay "2s"
+             ;:transition "2s"
+             ;:margin-bottom "0px !important"
+             :opacity "0.6"
+             }
+    [:&.space {:height "0px !important"
+               :padding-bottom "270px !important"
+               :margin-bottom "0px !important"
+               :visibility "hidden"}]
+    ]
+   
+   ])
 
