@@ -23,6 +23,12 @@
   [:to {:background-color "gray"
         :opacity 1}])
 
+(defkeyframes appear
+  ["100%" {:font-size "22px"}
+   "33%" {:font-size "44px"}
+   "0%" {:font-size "33px"}
+   ])
+
 (defn grid [& strs]
   (let [rows (butlast strs)
         columns (last strs)
@@ -42,6 +48,7 @@
    merge-to-left
    merge-to-right
    to-stone
+   appear
    ;; RM ::after setup
    ["div#app::after" {:visibility "hidden"}] ;; Hide setup hint
    [:#root {:position "absolute"
@@ -239,6 +246,11 @@
    [:.participants-stage {:flex-basis 0}]
 
 
+   [:.rank {:color "gray"
+            :font-size "22px"
+            :animation [[appear "0.8s"]]
+            :animation-delay "1.5s"
+            :animation-fill-mode :forwards}]
    [:.stacks {:margin-top "7px"
               :position "relative"}
     [:.pos {:position "absolute"

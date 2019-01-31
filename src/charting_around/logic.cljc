@@ -86,7 +86,7 @@
               :clj (atom init-state)))
 
 ;;
-(defmulti drive (fn [_ [evt-id :as evt]] (l ">" evt) evt-id))
+(defmulti drive (fn [_ [evt-id :as evt]] #_(l ">" evt) evt-id))
 (defmethod drive :regen-racers
   [state _]
   (update state :racers deep-merge (gen-racers)))
@@ -171,7 +171,25 @@
    :racers (fn [state _] (:racers state))
    :participants (fn [state _]
                    (into {} (filter (comp :in-select? val) (:racers state))))
-   :bets (fn [state] (:bets state))})
+   :bets (fn [state] (:bets state))
+
+   :rank (fn [state _]
+           (let [ranking (array-map
+                          98 "S"
+                          95 "A+"
+                          90 "A"
+                          75 "B"
+                          50 "C"
+                          25 "D"
+                          10 "E"
+                          0 "F")
+                 br (derive-node state [:bets-results])
+                 score (reduce + (vals br))
+                 max-score (* (count br) 100)
+                 score-percentage (max 0 (l 8888 (* (/ score max-score) 100)))]
+             (some (fn [[rank-percentage rank]] (when (>= score-percentage rank-percentage) rank))
+                   ranking)
+             ))})
 
 (defn derive-node [state [sub-id :as sub]]
   #_(l "<" sub)

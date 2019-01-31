@@ -67,29 +67,55 @@
                      (filter neg?)
                      (reduce +))
         neg-r (->r neg-val)]
-    [:div.stacks
-     [:div.pos
-      (for [[idx delta] (sort-by key (<sub [:bets-results]))
-            :let [p? (pos? delta)
-                  h (->r delta)]]
+    ^{:key [pos-val neg-val]}
+    [:div
+     [:div.stacks
+      [:div.pos
+       (for [[idx delta] (sort-by key (<sub [:bets-results]))
+             :let [p? (pos? delta)
+                   h (->r delta)]]
 
-        ^{:key idx}
-        [:div.stack {:class (when-not p? "space")
-                     :style {:height h
-                             :margin-bottom (- full-height h)}}])
-      [:div.val pos-val]]
+         ^{:key idx}
+         [:div.stack {:class (when-not p? "space")
+                      :style {:height h
+                              :margin-bottom (- full-height h)}}])
+       [:div.val pos-val]]
 
-     [:div.neg
-      (for [[idx delta] (sort-by key (<sub [:bets-results]))
-            :let [n? (neg? delta)
-                  h (->r delta)]]
+      [:div.neg
+       (for [[idx delta] (sort-by key (<sub [:bets-results]))
+             :let [n? (neg? delta)
+                   h (->r delta)]]
 
-        ^{:key idx}
-        [:div.stack {:class (when-not n? "space")
-                     :style {:height h
-                             :margin-bottom (- full-height h)}}])
-      [:div.val neg-val]]
-     ]))
+         ^{:key idx}
+         [:div.stack {:class (when-not n? "space")
+                      :style {:height h
+                              :margin-bottom (- full-height h)}}])
+       [:div.val neg-val]]
+      ]
+     [:div.rank (pr-str (<sub [:rank]))]
+     #_(let [mx 50
+           my 50
+           rx 10
+           ry 20
+           x 100
+           y 100]
+       [:svg {:height "400px"}
+        [:circle {:cx mx :cy my :r 2}]
+        [:circle {:cx (+ mx rx) :cy (+ my ry) :r 2}]
+        [:circle {:cx x  :cy y  :r 2}]
+        [:path {:d (gstr/format
+                    "M%s %s
+                  A %s %s 0 1 0 %s %s"
+                    mx my rx ry x y)
+                                        ;              L 110 215
+                                        ;              A 36 60 0 0 1 150.71 170.29
+                                        ;              L 172.55 152.45
+                                        ;              A 30 50 -45 0 1 215.1 109.9
+                                        ;              L 315 10
+                :stroke "black"
+                :fill "green"
+                :stroke-width "2"
+                :fill-opacity "0.5"}]])[:div "BLAH"]]))
 
 (defn dev-checkpoint []
   [:div {:style {:position "absolute"
