@@ -4,7 +4,6 @@
             [garden.core]
             [goog.string :as gstr]
             [charting-around.logic :as logic :refer [state >evt <sub]]
-            [charting-around.css]
             [charting-around.chart :as chart]
             [charting-around.stages.participants]
             [charting-around.stages.bets]
@@ -17,7 +16,8 @@
    (js/console.log desc expr)
    expr))
 
-(defn results [state]
+(defmulti results :results-presentation)
+(defmethod results :wave [state]
   (let [field-x 600
         field-y 400
         history (<sub [:balance-history])
@@ -53,6 +53,11 @@
         ^{:key idx}
         [:circle.balance {:cx (* 30 idx) :cy r}])]]))
 
+(defmethod results :stacks [state]
+  [:div #_(pr-str (<sub [:balance-history]))
+   [:div.stack.move1]
+   [:div.stack]])
+
 (defn dev-checkpoint []
   [:div {:style {:position "absolute"
                  :top "10px"
@@ -63,17 +68,16 @@
 
 (defn root []
   [:div#root
-   [:style (garden.core/css charting-around.css/styles)]
-   [:link {:rel "stylesheet"
-           :href "https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"}]
-   [:link {:rel "stylesheet"
-           :href "https://fonts.googleapis.com/icon?family=Material+Icons"}]
-
    [dev-checkpoint]
    [:div.layout
     [charting-around.stages.participants/participants-stage @logic/state]
     [charting-around.stages.bets/bets-stage @logic/state]
-    [results @logic/state]]
+    [:div
+     [:div
+      [:button.btn {:on-click #(>evt [:set-results-presentation :wave])} "WAVE"]
+      [:button.btn {:on-click #(>evt [:set-results-presentation :stacks])} "STACKS"]]
+     [results @logic/state]]
+    ]
    ])
 
 

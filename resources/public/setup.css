@@ -1,5 +1,5 @@
 div#app::after {
-  content: "You also will need your styles! To compile them `make styles`";
+  content: "You also will need your styles! To compile them `make dev_css`";
   background-color: lightgray;
   width: max-content;
   border: 2px solid orange;

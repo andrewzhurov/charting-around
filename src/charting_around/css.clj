@@ -25,13 +25,8 @@
 
 (def styles
   [move1
-   [:.setup-card {:background-color "lightgray" ;; Duplicate of css.css
-                  :width "max-content"
-                  :border "2px solid orange"
-                  :font-size "22px"
-                  :padding "10px"
-                  :margin-bottom "20px"}]
-
+   ;; RM ::after setup
+   ["div#app::after" {:visibility "hidden"}] ;; Hide setup hint
    [:#root {:position "absolute"
             :top 0 :left 0 :right 0 :bottom 0
             :transition "0.2s"}]

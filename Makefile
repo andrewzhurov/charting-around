@@ -2,7 +2,7 @@ figwheel:
 	clj -Sdeps "{:deps {com.bhauman/figwheel-main {:mvn/version \"0.1.9\"}}}}"  -m figwheel.main -c charting-around.core --repl
 
 dev_css:
-	clj -R:dev-css -e "(require 'clojure-watch.core) (require 'charting-around.css) (clojure-watch.core/start-watch [{:path \"./src/charting_around/\" :callback (fn [event filename] (println \"Recompiling, because changed:\" event filename) (garden.core/css {:output-to \"css.css\"} charting-around.css/styles)) :event-types [:create :modify :delete] :recursive false}])"
+	clj -R:dev-css -e "(require 'clojure-watch.core) (require 'charting-around.css) (let [compile-fn (fn [& args] (require 'charting-around.css :reload-all) (println \"Recompiling, because changed:\" args) (garden.core/css {:output-to \"resources/public/css.css\"} charting-around.css/styles))] (clojure-watch.core/start-watch [{:path \"./src/charting_around/\" :bootstrap compile-fn :callback compile-fn  :event-types [:create :modify :delete] :recursive false}]))"
 
 dev_autocompile:
 	clj -m cljs.main -w src -c charting-around.core

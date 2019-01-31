@@ -4,7 +4,6 @@
             [garden.core]
             [goog.string :as gstr]
             [charting-around.logic :as logic :refer [state >evt <sub]]
-            [charting-around.css]
             [charting-around.chart :as chart]
             ))
 

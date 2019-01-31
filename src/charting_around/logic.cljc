@@ -79,7 +79,8 @@
   )
 
 (def init-state {:racers (gen-racers)
-                 :bets {}})
+                 :bets {}
+                 :results-presentation :wave})
 
 (def state #?(:cljs (reagent.core/atom init-state)
               :clj (atom init-state)))
@@ -114,6 +115,10 @@
 (defmethod drive :bet
   [state [_ {:keys [place pt-id chance] :as bet}]]
   (update-in state [:bets place] merge bet))
+
+(defmethod drive :set-results-presentation
+  [state [_ presentation-id]]
+  (assoc state :results-presentation presentation-id))
 
 
 (defmethod drive :default [state evt]
