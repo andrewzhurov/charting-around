@@ -23,11 +23,53 @@
   [:to {:background-color "gray"
         :opacity 1}])
 
+(defkeyframes test-anim
+  ["33%" {:background-color "red"}]
+  ["66%" {:background-color "green"}]
+  ["100%" {:background-color "blue"}]
+  )
+
 (defkeyframes appear
-  ["100%" {:font-size "22px"}
-   "33%" {:font-size "44px"}
-   "0%" {:font-size "33px"}
-   ])
+  ["100%" {:transform "scale(1.2)"
+           :opacity 1}]
+  ["66%" {:transform "scale(1.5)"
+          :opacity 1}]
+  ["0%" {:transform "scale(1)"
+         :opacity 0}]
+   )
+
+(defkeyframes appear-val
+  ["100%" {:transform "scale(1.1)"
+           :opacity 1}]
+  ["66%" {:transform "scale(1.2)"
+          :opacity 1}]
+  ["66%" {:transform "scale(1)"
+          :opacity 0}]
+  )
+
+(defkeyframes collapse-val-pos
+  ["100%" {:opacity 0}]
+  ["50%" ])
+
+(defkeyframes shine
+  ["0%" {:opacity 1}]
+  ["8%" {:opacity 0.6}]
+  ["30%" {:opacity 1}]
+  ["38%" {:opacity 0.5}]
+  ["70%" {:opacity 1}]
+  ["100%" {:opacity 1}]
+  )
+(defkeyframes rainbow
+  ["22%" {:border-color "chocolate"
+          :color "chocolate"}]
+  ["44%" {:border-color "cornflowerblue"
+          :color "cornflowerblue"}]
+  ["66%" {:border-color "cadetblue"
+          :color "cadetblue"}#_{:border-color "crimson"
+          :color "crimson"}]
+  ["88%" {:border-color "darkgoldenrod"
+          :color "darkgoldenrod"}]
+  #_["100%" ])
 
 (defn grid [& strs]
   (let [rows (butlast strs)
@@ -49,6 +91,10 @@
    merge-to-right
    to-stone
    appear
+   appear-val
+   rainbow
+   shine
+   test-anim
    ;; RM ::after setup
    ["div#app::after" {:visibility "hidden"}] ;; Hide setup hint
    [:#root {:position "absolute"
@@ -132,7 +178,6 @@
    [:&#p3 {:border-color "bronze"
            :background-color "bronze"}]
    [".bet[hover-over=true]" {:border "2px dashed cadetblue !important"}]
-    
 
    [:.entity-polygon
     [:.criteria {:visibility "hidden"}
@@ -159,6 +204,7 @@
                  :display "inline-block"
                  :padding "6px"
                  :margin-right "4px"
+                 :margin-bottom "3px"
                  :transition "0.4s border-color"
                  }]
     [:.criteria.in-display {:border-color active-color
@@ -224,7 +270,7 @@
     [:&.vanish {:opacity "0"}]]
 
    [:.layout {:display "flex"}]
-   [:#bets2 {:width "100%"
+   [:#bets2 {:width "min-content"
              :display "flex"
              :flex-direction "column"
              :align-items "center"}
@@ -239,18 +285,58 @@
 
 
    [:.results {:position "relative"
-               :width "100%"}]
+               :width "100%"
+               :margin-left "10px"}]
    [:.results-presentation-picker {:position "absolute"
                                    :top "10px"
                                    :right "10px"}]
    [:.participants-stage {:flex-basis 0}]
 
 
-   [:.rank {:color "gray"
-            :font-size "22px"
-            :animation [[appear "0.8s"]]
-            :animation-delay "1.5s"
-            :animation-fill-mode :forwards}]
+   [:.rank-view {:display "flex"
+                 :height "60px"
+                 :width "60px"
+                 :align-items "center"
+                 :justify-content "space-around"
+                 :border "2px solid gray"
+                 :border-radius "50%"
+                 :opacity 0
+                 :transition "0.3s"
+                 :animation-fill-mode "forwards !important"}
+    [:&.S {:animation [[appear "0.7s"]
+                       [rainbow "3s" :infinite]]
+           :animation-delay "1.5s"
+           }
+     ]
+    [:&.A {:color "gold"
+           :animation [[appear "0.7s"]
+                       [shine "4s" :infinite]]
+           :animation-delay "1.2s"}]
+    [:&.B {:color "silver"
+           :animation [[appear "0.7s"]]
+           :animation-delay "1s"
+           }]
+    [:&.C {:color "bronze"
+           :animation [[appear "0.7s"]]
+           :animation-delay "1s"
+           }]
+    [:&.D {:color "lead"
+           :animation [[appear "0.7s"]]
+           :animation-delay "1s"
+           }]
+    [:&.E {:color "steel"
+           :animation [[appear "0.7s"]]
+           :animation-delay "1s"
+           }]
+    [:&.F {:color "coal"
+           :animation [[appear "0.7s"]]
+           :animation-delay "1s"
+           }]
+
+    [:.rank {:color "inherit"
+             :font-size "22px"
+             }
+     ]]
    [:.stacks {:margin-top "7px"
               :position "relative"}
     [:.pos {:position "absolute"
@@ -260,8 +346,13 @@
             :animation-delay "1s"
             :animation-fill-mode :forwards
             :z-index 5}
-     [:.stack {:background-color "green"}]
-     [:.val {:margin-left "-25px"}]
+     [:.stack {:background-color "darkgreen"}]
+     [:.val {:margin-left "25px"
+             :animation [[appear-val "2s"]]
+             :animation-fill-mode :forwards
+             :opacity 0
+             :color "darkgreen"
+             :font-weight "700"}]
      ]
 
     [:.neg {:position "absolute"
@@ -271,8 +362,14 @@
             :animation-delay "1s"
             :animation-fill-mode :forwards
             :z-index 5}
-     [:.stack {:background-color "red"}]
-     [:.val {:margin-left "25px"}]
+     [:.stack {:background-color "firebrick"}]
+     [:.val {:margin-left "25px"
+             :animation [[appear-val "2s"]]
+             :animation-fill-mode :forwards
+             :opacity 0
+             :color "firebrick"
+             :font-weight "700"
+             }]
      ]]
 
    [:.stack {:width "20px"
@@ -291,6 +388,21 @@
                :margin-bottom "0px !important"
                :visibility "hidden"}]
     ]
-   
+
+   [:.test {:height "20px"
+            :width "20px"
+            :position "absolute"
+            :top "200px"
+            :left "60px"
+            :animation [[test-anim "3s" :infinite]]
+            :animation-delay "0.5s"
+            :animation-timing-function "linear"
+            }]
+
+   [:.results {:transition "1s"}]
+   [:.results.hidden {:opacity 0}]
+   [:.row {:width "min-content"}]
+
+   [:.btn.pressed {:background-color "#1d7d74 !important"}]
    ])
 

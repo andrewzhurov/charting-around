@@ -53,6 +53,8 @@
                 [:input.vanishable {:class (when-not bet "vanish")
                                     :style {:margin "0px"}
                                     :type "range"
+                                    :min 1
+                                    :max 100
                                     :value (or chance 80)
                                     :on-change #(>evt [:bet {:place place
                                                              :chance (int (.-value (.-target %)))}])}]]]]]))]

@@ -80,7 +80,7 @@
 
 (def init-state {:racers (gen-racers)
                  :bets {}
-                 :results-presentation :wave})
+                 :results-presentation :stacks})
 
 (def state #?(:cljs (reagent.core/atom init-state)
               :clj (atom init-state)))
@@ -106,12 +106,10 @@
 
 (defmethod drive :toggle-bet
   [state [_ {:keys [place pt-id] :as bet}]]
-  (update-in state [:bets place] (fn [old]
-                                   (if (= (:pt-id old) pt-id)
-                                     nil
-                                     (merge {:chance 80}
-                                            old
-                                            bet)))))
+  (if (= (get-in state [:bets place :pt-id]) pt-id)
+    (update state :bets dissoc place)
+    (update-in state [:bets place] (fn [old] (merge {:chance 80} old bet)))))
+
 (defmethod drive :bet
   [state [_ {:keys [place pt-id chance] :as bet}]]
   (update-in state [:bets place] merge bet))
@@ -146,11 +144,13 @@
                    (let [bets (derive-node state [:bets])
                          rr (derive-node state [:race-results])]
                      (reduce
-                      (fn [acc [bet-id {:keys [pt-id place chance]}]]
-                        (assoc acc bet-id (if (= (get rr place) pt-id)
-                                            chance (- chance))))
+                      (fn [acc [place pt-id]]
+                        (if-let [bet (get bets place)]
+                          (assoc acc place (if (= pt-id (:pt-id bet))
+                                             (:chance bet) (- (:chance bet))))
+                          acc))
                       {}
-                      bets)))
+                      rr)))
 
 
    :balance-history (fn [state _]
@@ -176,26 +176,27 @@
    :rank (fn [state _]
            (let [ranking (array-map
                           98 "S"
-                          95 "A+"
                           90 "A"
                           75 "B"
                           50 "C"
                           25 "D"
                           10 "E"
                           0 "F")
-                 br (derive-node state [:bets-results])
+                 br (l 1 (derive-node state [:bets-results]))
                  score (reduce + (vals br))
                  max-score (* (count br) 100)
-                 score-percentage (max 0 (l 8888 (* (/ score max-score) 100)))]
+                 score-percentage (max 0 (* (/ score max-score) 100))]
              (some (fn [[rank-percentage rank]] (when (>= score-percentage rank-percentage) rank))
                    ranking)
              ))})
 
 (defn derive-node [state [sub-id :as sub]]
-  #_(l "<" sub)
-  (if-let [sub-fn (get subscriptions sub-id)]
-    (sub-fn state sub)
-    (println "No SUB" sub)))
+  (let [sub-fn (get subscriptions sub-id)
+        sub-val (sub-fn state sub)]
+    #_#?(:cljs (js/console.log "<" sub (if sub-fn sub-val "NO SUB FOUND")))
+    (if sub-fn
+      sub-val
+      #?(:cljs (js/Error. (str "No SUB found for " (pr-str sub)))))))
 
 (defn <sub [sub]
   (derive-node @state sub))

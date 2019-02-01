@@ -42,7 +42,7 @@
 
 (defn participants-stage []
   (let [{:keys [chart-comp _spec]} (chart/init-chart {:field [400 400]
-                                                      :criteria [:top-speed :horsepower :production-year :weight :transmission :skill]
+                                                      :criteria [:top-speed :horsepower #_:production-year :weight :transmission :skill]
                                                       :*data (r/cursor logic/state [:racers])
                                                       })]
     (fn []

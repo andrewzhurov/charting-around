@@ -56,18 +56,22 @@
   (let [content-height 228
         full-height 270
         stack-width 20
-        ->r (fn [delta] (-> (/ content-height 100) (* (js/Math.abs delta))))
+        ->r (fn [delta] (-> (/ content-height 100) (* delta)))
         bets-results (<sub [:bets-results])
         deltas (map val bets-results)
         pos-val (->> deltas
                      (filter pos?)
-                     (reduce +))
+                     (reduce +)
+                     (Math.abs))
         pos-r (->r pos-val)
         neg-val (->> deltas
                      (filter neg?)
-                     (reduce +))
-        neg-r (->r neg-val)]
-    ^{:key [pos-val neg-val]}
+                     (reduce +)
+                     (Math.abs))
+        neg-r (->r neg-val)
+        rest-middle (->r (+ (/ (l 11 (Math.abs (- pos-val neg-val))) 2)
+                            (l 22 (min pos-val neg-val))))]
+    ^{:key (map (fn [[k v]] [k (pos? v)]) bets-results)}
     [:div
      [:div.stacks
       [:div.pos
@@ -84,7 +88,7 @@
       [:div.neg
        (for [[idx delta] (sort-by key (<sub [:bets-results]))
              :let [n? (neg? delta)
-                   h (->r delta)]]
+                   h (->r (Math.abs delta))]]
 
          ^{:key idx}
          [:div.stack {:class (when-not n? "space")
@@ -92,7 +96,13 @@
                               :margin-bottom (- full-height h)}}])
        [:div.val neg-val]]
       ]
-     [:div.rank (pr-str (<sub [:rank]))]
+     [:div.rank-view {:class (<sub [:rank])
+                      :style {:position "absolute"
+                              :top (str rest-middle "px")
+                              :left "70px"}}
+      [:div.rank
+       (pr-str (<sub [:rank]))]]
+     #_[:div.test]
      #_(let [mx 50
            my 50
            rx 10
@@ -115,7 +125,7 @@
                 :stroke "black"
                 :fill "green"
                 :stroke-width "2"
-                :fill-opacity "0.5"}]])[:div "BLAH"]]))
+                :fill-opacity "0.5"}]])]))
 
 (defn dev-checkpoint []
   [:div {:style {:position "absolute"
@@ -125,17 +135,23 @@
    [:button.btn.checkpoint    {:on-click #(>evt [:make-checkpoint])} "SAVE"]
    [:button.btn.checkpoint-to {:on-click #(>evt [:to-checkpoint])}   "LOAD"]])
 
+(defn results-section [state]
+  [:div.results {:class (l 11 (when (empty? (<sub [:bets-results])) "hidden"))}
+   [:div.results-presentation-picker
+    (for [[id name] [[:wave "WAVE"] [:stacks "STACKS"]]
+          :let [pressed? (= id (:results-presentation state))]]
+      ^{:key id}
+      [:button.btn {:class (when pressed? "pressed")
+                    :on-click #(>evt [:set-results-presentation id])} name])]
+   [results state]])
+
 (defn root []
   [:div#root
-   [dev-checkpoint]
+   #_[dev-checkpoint]
    [:div.layout
     [charting-around.stages.participants/participants-stage @logic/state]
     [charting-around.stages.bets/bets-stage @logic/state]
-    [:div.results
-     [:div.results-presentation-picker
-      [:button.btn {:on-click #(>evt [:set-results-presentation :wave])} "WAVE"]
-      [:button.btn {:on-click #(>evt [:set-results-presentation :stacks])} "STACKS"]]
-     [results @logic/state]]
+    [results-section @logic/state]
     ]
    ])
 
